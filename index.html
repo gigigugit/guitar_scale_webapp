@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dragon Scales</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237a3814'/%3E%3Cpath d='M14 18h36v6H14zm0 11h36v6H14zm0 11h36v6H14zm10-22h4v28h-4zm12 0h4v28h-4z' fill='%23ffd8b4'/%3E%3C/svg%3E">
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #313131;
+      color: #f3f7f9;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    .boot-message {
+      max-width: 720px;
+      margin: 48px auto;
+      padding: 24px;
+      border: 1px solid rgba(115, 215, 255, 0.22);
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.18);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+
+    .boot-message h1 {
+      margin: 0 0 12px;
+      font-size: 28px;
+    }
+
+    .boot-message p {
+      margin: 10px 0;
+      line-height: 1.6;
+      color: #c8dbe2;
+    }
+
+    .boot-message code {
+      color: #b9edff;
+      font-family: Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="boot-message">
+      <h1>Vite app detected</h1>
+      <p>This project will look blank in Live Server because the browser is loading raw <code>.jsx</code> files without Vite transformation.</p>
+      <p>Run it with <code>npm run dev</code> in the project folder, then open the Vite URL, usually <code>http://localhost:5173</code>.</p>
+      <p>If you want a static preview, run <code>npm run build</code> and serve the generated <code>dist</code> folder instead.</p>
+    </div>
+  </div>
+  <noscript>
+    <div class="boot-message">
+      <h1>JavaScript required</h1>
+      <p>This app requires JavaScript to run.</p>
+    </div>
+  </noscript>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
