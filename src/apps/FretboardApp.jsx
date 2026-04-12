@@ -263,15 +263,18 @@ export default function FretboardApp() {
 
   return (
     // Top-level vertical spacing for the fretboard viewer stack.
-    <div className="relative min-h-[calc(100vh-2rem)] pt-1 md:min-h-[calc(100vh-2.5rem)]" style={{ paddingBottom: controlsOpen && shouldLiftPanelWithDrawer ? `${drawerHeight + 12}px` : undefined }}>
+    <div
+      className="relative min-h-[calc(100dvh-1rem)] pt-1 sm:min-h-[calc(100dvh-1.5rem)] max-[height:430px]:min-h-[calc(100dvh-0.25rem)] max-[height:430px]:pt-0"
+      style={{ paddingBottom: controlsOpen && shouldLiftPanelWithDrawer ? `${drawerHeight + 12}px` : undefined }}
+    >
       <HeroHeader hidden={hideHeader} title={headerTitle} />
 
       <div
-        className="flex min-h-[calc(100vh-7rem)] items-center justify-center pb-8 transition-transform duration-300 ease-out sm:min-h-[calc(100vh-8rem)]"
+        className="flex min-h-[calc(100dvh-6rem)] items-center justify-center pb-5 transition-transform duration-300 ease-out sm:min-h-[calc(100dvh-7rem)] max-[height:430px]:min-h-0 max-[height:430px]:items-start max-[height:430px]:pb-2"
         style={{ transform: `translateY(-${viewerLift}px)` }}
       >
         {/* Spacing between the fretboard panel and the caption below it. */}
-        <div className="grid w-full justify-items-center gap-1.5 px-3 sm:px-4 md:px-5">
+        <div className="grid w-full justify-items-center gap-1 px-1 sm:px-3 md:px-4 max-[height:430px]:gap-0.5 max-[height:430px]:px-0">
           <OutputPanel isSmartphone={isSmartphone} model={renderedView} visualSettings={effectiveVisualSettings} />
           <FretboardCaptionSelectors
             endFret={endFret}
