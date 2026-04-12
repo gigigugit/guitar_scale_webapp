@@ -19,6 +19,7 @@ import {
 import {
   DEFAULT_FRETBOARD_VISUAL_SETTINGS,
   FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY,
+  getSmartphoneOptimizedVisualSettings,
   loadFretboardVisualSettings,
   normalizeFretboardVisualSettings,
 } from "../lib/fretboardVisualSettings";
@@ -28,6 +29,21 @@ const scaleOptions = Object.keys(SCALE_INTERVALS);
 const defaultInstrument = instrumentOptions[0];
 const defaultTuning = Object.keys(INSTRUMENTS[defaultInstrument])[0];
 const FIXED_MAX_FRET = 24;
+const SMARTPHONE_MEDIA_QUERY = "(max-width: 640px) and (pointer: coarse)";
+
+function detectSmartphone() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const mediaMatch = typeof window.matchMedia === "function" ? window.matchMedia(SMARTPHONE_MEDIA_QUERY).matches : false;
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const narrowViewport = window.innerWidth <= 640;
+  const compactScreen = Math.min(window.screen?.width ?? window.innerWidth, window.screen?.height ?? window.innerHeight) <= 640;
+  const mobileAgentMatch = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(userAgent);
+
+  return mediaMatch || mobileAgentMatch || (narrowViewport && compactScreen);
+}
 
 function fallbackCopy(text) {
   const helper = document.createElement("textarea");
@@ -53,6 +69,7 @@ export default function FretboardApp() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [drawerHeight, setDrawerHeight] = useState(0);
   const [visualSettings, setVisualSettings] = useState(loadFretboardVisualSettings);
+  const [isSmartphone, setIsSmartphone] = useState(detectSmartphone);
 
   const tuningOptions = Object.keys(INSTRUMENTS[instrument]);
   const currentTuning = INSTRUMENTS[instrument][tuningName];
@@ -75,6 +92,32 @@ export default function FretboardApp() {
   useEffect(() => {
     setNoteSelections((previous) => previous.map((value, index) => (index < renderedView.scaleLength ? value : false)));
   }, [renderedView.scaleLength]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia(SMARTPHONE_MEDIA_QUERY);
+    const syncSmartphoneState = () => setIsSmartphone(detectSmartphone());
+
+    syncSmartphoneState();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", syncSmartphoneState);
+    } else if (typeof mediaQuery.addListener === "function") {
+      mediaQuery.addListener(syncSmartphoneState);
+    }
+    window.addEventListener("resize", syncSmartphoneState);
+
+    return () => {
+      if (typeof mediaQuery.removeEventListener === "function") {
+        mediaQuery.removeEventListener("change", syncSmartphoneState);
+      } else if (typeof mediaQuery.removeListener === "function") {
+        mediaQuery.removeListener(syncSmartphoneState);
+      }
+      window.removeEventListener("resize", syncSmartphoneState);
+    };
+  }, []);
 
   function handleInstrumentChange(nextInstrument) {
     const nextTuning = Object.keys(INSTRUMENTS[nextInstrument])[0];
@@ -157,6 +200,7 @@ export default function FretboardApp() {
   const viewerLift = controlsOpen && shouldLiftPanelWithDrawer ? Math.min(Math.max(drawerHeight * 0.34, 48), 150) : 0;
   const headerTitle = `${selectedKey} ${scaleName}`;
   const hideHeader = viewerLift > 0;
+  const effectiveVisualSettings = isSmartphone ? getSmartphoneOptimizedVisualSettings(visualSettings) : visualSettings;
   const controlSnapshot = {
     displayMode,
     displayModes: DISPLAY_MODES,
@@ -241,7 +285,7 @@ export default function FretboardApp() {
       >
         {/* Spacing between the fretboard panel and the caption below it. */}
         <div className="grid w-full justify-items-center gap-1.5">
-          <OutputPanel model={renderedView} visualSettings={visualSettings} />
+          <OutputPanel isSmartphone={isSmartphone} model={renderedView} visualSettings={effectiveVisualSettings} />
           <FretboardCaptionSelectors
             endFret={endFret}
             instrument={instrument}

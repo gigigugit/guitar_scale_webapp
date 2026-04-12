@@ -63,6 +63,29 @@ export const DEFAULT_FRETBOARD_VISUAL_SETTINGS = {
   longNoteFontSize: 9.5,
 };
 
+export function getSmartphoneOptimizedVisualSettings(settings) {
+  const normalized = normalizeFretboardVisualSettings(settings);
+
+  return {
+    ...normalized,
+    panelPaddingX: Math.min(normalized.panelPaddingX, 4),
+    panelPaddingTop: Math.min(normalized.panelPaddingTop, 4),
+    panelPaddingBottom: Math.min(normalized.panelPaddingBottom, 4),
+    leftPad: Math.min(normalized.leftPad, 34),
+    topPad: Math.min(normalized.topPad, 18),
+    rightPad: Math.min(normalized.rightPad, 8),
+    bottomPad: Math.min(normalized.bottomPad, 10),
+    compactStringGap: Math.min(normalized.compactStringGap, 34),
+    standardStringGap: Math.min(normalized.standardStringGap, 38),
+    openLaneWidth: Math.min(normalized.openLaneWidth, 28),
+    preferredFretWidth: Math.min(normalized.preferredFretWidth, 52),
+    minFretWidth: Math.min(normalized.minFretWidth, 32),
+    stringLabelFontSize: Math.min(normalized.stringLabelFontSize, 10.5),
+    fretNumberFontSize: Math.min(normalized.fretNumberFontSize, 9.5),
+    openFretLabelSize: Math.min(normalized.openFretLabelSize, 9.5),
+  };
+}
+
 function clampNumber(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
