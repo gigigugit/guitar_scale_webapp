@@ -51,7 +51,7 @@ function detectCompactSmartphone() {
     return false;
   }
 
-  return detectSmartphone() && window.innerHeight <= COMPACT_SMARTPHONE_MAX_HEIGHT;
+  return window.innerHeight <= COMPACT_SMARTPHONE_MAX_HEIGHT;
 }
 
 function fallbackCopy(text) {
