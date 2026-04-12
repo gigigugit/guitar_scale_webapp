@@ -271,7 +271,7 @@ export default function FretboardApp() {
         style={{ transform: `translateY(-${viewerLift}px)` }}
       >
         {/* Spacing between the fretboard panel and the caption below it. */}
-        <div className="grid w-full justify-items-center gap-1.5">
+        <div className="grid w-full justify-items-center gap-1.5 px-3 sm:px-4 md:px-5">
           <OutputPanel isSmartphone={isSmartphone} model={renderedView} visualSettings={effectiveVisualSettings} />
           <FretboardCaptionSelectors
             endFret={endFret}
