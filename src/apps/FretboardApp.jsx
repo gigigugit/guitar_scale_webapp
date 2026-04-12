@@ -29,7 +29,9 @@ const scaleOptions = Object.keys(SCALE_INTERVALS);
 const defaultInstrument = instrumentOptions[0];
 const defaultTuning = Object.keys(INSTRUMENTS[defaultInstrument])[0];
 const FIXED_MAX_FRET = 24;
-const SMARTPHONE_MEDIA_QUERY = "(max-width: 640px) and (pointer: coarse)";
+const SMARTPHONE_MAX_WIDTH = 640;
+const SMARTPHONE_MEDIA_QUERY = `(max-width: ${SMARTPHONE_MAX_WIDTH}px) and (pointer: coarse)`;
+const MOBILE_USER_AGENT_PATTERN = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i;
 
 function detectSmartphone() {
   if (typeof window === "undefined") {
@@ -38,9 +40,9 @@ function detectSmartphone() {
 
   const mediaMatch = typeof window.matchMedia === "function" ? window.matchMedia(SMARTPHONE_MEDIA_QUERY).matches : false;
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  const narrowViewport = window.innerWidth <= 640;
-  const compactScreen = Math.min(window.screen?.width ?? window.innerWidth, window.screen?.height ?? window.innerHeight) <= 640;
-  const mobileAgentMatch = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(userAgent);
+  const narrowViewport = window.innerWidth <= SMARTPHONE_MAX_WIDTH;
+  const compactScreen = Math.min(window.screen?.width ?? window.innerWidth, window.screen?.height ?? window.innerHeight) <= SMARTPHONE_MAX_WIDTH;
+  const mobileAgentMatch = MOBILE_USER_AGENT_PATTERN.test(userAgent);
 
   return mediaMatch || mobileAgentMatch || (narrowViewport && compactScreen);
 }
