@@ -31,7 +31,6 @@ const defaultTuning = Object.keys(INSTRUMENTS[defaultInstrument])[0];
 const FIXED_MAX_FRET = 24;
 // Match Tailwind's `sm` breakpoint so the phone-specific viewer kicks in at the same width the layout starts stacking.
 const SMARTPHONE_MAX_WIDTH = 640;
-const SMARTPHONE_MEDIA_QUERY = `(max-width: ${SMARTPHONE_MAX_WIDTH}px) and (pointer: coarse)`;
 const MOBILE_USER_AGENT_PATTERN = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i;
 
 function detectSmartphone() {
@@ -39,14 +38,11 @@ function detectSmartphone() {
     return false;
   }
 
-  const mediaMatch = typeof window.matchMedia === "function" ? window.matchMedia(SMARTPHONE_MEDIA_QUERY).matches : false;
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  const narrowViewport = window.innerWidth <= SMARTPHONE_MAX_WIDTH;
-  const handsetSizedScreen = (window.screen?.width ?? window.innerWidth) <= SMARTPHONE_MAX_WIDTH;
+  const isNarrowViewport = window.innerWidth <= SMARTPHONE_MAX_WIDTH;
   const isRecognizedPhoneUserAgent = MOBILE_USER_AGENT_PATTERN.test(userAgent);
-  const isHandsetLayout = narrowViewport && (mediaMatch || handsetSizedScreen);
 
-  return isRecognizedPhoneUserAgent || isHandsetLayout;
+  return isRecognizedPhoneUserAgent || isNarrowViewport;
 }
 
 function fallbackCopy(text) {
@@ -98,26 +94,14 @@ export default function FretboardApp() {
   }, [renderedView.scaleLength]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (typeof window === "undefined") {
       return undefined;
     }
 
-    const mediaQuery = window.matchMedia(SMARTPHONE_MEDIA_QUERY);
     const syncSmartphoneState = () => setIsSmartphone(detectSmartphone());
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", syncSmartphoneState);
-    } else if (typeof mediaQuery.addListener === "function") {
-      mediaQuery.addListener(syncSmartphoneState);
-    }
     window.addEventListener("resize", syncSmartphoneState);
 
     return () => {
-      if (typeof mediaQuery.removeEventListener === "function") {
-        mediaQuery.removeEventListener("change", syncSmartphoneState);
-      } else if (typeof mediaQuery.removeListener === "function") {
-        mediaQuery.removeListener(syncSmartphoneState);
-      }
       window.removeEventListener("resize", syncSmartphoneState);
     };
   }, []);
