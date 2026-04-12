@@ -31,6 +31,7 @@ const defaultTuning = Object.keys(INSTRUMENTS[defaultInstrument])[0];
 const FIXED_MAX_FRET = 24;
 // Match Tailwind's `sm` breakpoint so the phone-specific viewer kicks in at the same width the layout starts stacking.
 const SMARTPHONE_MAX_WIDTH = 640;
+const COMPACT_SMARTPHONE_MAX_HEIGHT = 430;
 const MOBILE_USER_AGENT_PATTERN = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i;
 
 function detectSmartphone() {
@@ -43,6 +44,14 @@ function detectSmartphone() {
   const isRecognizedPhoneUserAgent = MOBILE_USER_AGENT_PATTERN.test(userAgent);
 
   return isRecognizedPhoneUserAgent || isNarrowViewport;
+}
+
+function detectCompactSmartphone() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return detectSmartphone() && window.innerHeight <= COMPACT_SMARTPHONE_MAX_HEIGHT;
 }
 
 function fallbackCopy(text) {
@@ -70,6 +79,7 @@ export default function FretboardApp() {
   const [drawerHeight, setDrawerHeight] = useState(0);
   const [visualSettings, setVisualSettings] = useState(loadFretboardVisualSettings);
   const [isSmartphone, setIsSmartphone] = useState(() => detectSmartphone());
+  const [isCompactSmartphone, setIsCompactSmartphone] = useState(() => detectCompactSmartphone());
 
   const tuningOptions = Object.keys(INSTRUMENTS[instrument]);
   const currentTuning = INSTRUMENTS[instrument][tuningName];
@@ -98,7 +108,10 @@ export default function FretboardApp() {
       return undefined;
     }
 
-    const syncSmartphoneState = () => setIsSmartphone(detectSmartphone());
+    const syncSmartphoneState = () => {
+      setIsSmartphone(detectSmartphone());
+      setIsCompactSmartphone(detectCompactSmartphone());
+    };
     window.addEventListener("resize", syncSmartphoneState);
 
     return () => {
@@ -186,7 +199,7 @@ export default function FretboardApp() {
   const shouldLiftPanelWithDrawer = visualSettings.liftPanelWithDrawer;
   const viewerLift = controlsOpen && shouldLiftPanelWithDrawer ? Math.min(Math.max(drawerHeight * 0.34, 48), 150) : 0;
   const headerTitle = `${selectedKey} ${scaleName}`;
-  const hideHeader = viewerLift > 0;
+  const hideHeader = viewerLift > 0 || isCompactSmartphone;
   const effectiveVisualSettings = isSmartphone ? getSmartphoneOptimizedVisualSettings(visualSettings) : visualSettings;
   const controlSnapshot = {
     displayMode,
@@ -264,17 +277,23 @@ export default function FretboardApp() {
   return (
     // Top-level vertical spacing for the fretboard viewer stack.
     <div
-      className="relative min-h-[calc(100dvh-1rem)] pt-1 sm:min-h-[calc(100dvh-1.5rem)] max-[height:430px]:min-h-[calc(100dvh-0.25rem)] max-[height:430px]:pt-0"
+      className={[
+        "relative",
+        isCompactSmartphone ? "min-h-[calc(100dvh-0.25rem)] pt-0" : "min-h-[calc(100dvh-1rem)] pt-1 sm:min-h-[calc(100dvh-1.5rem)]",
+      ].join(" ")}
       style={{ paddingBottom: controlsOpen && shouldLiftPanelWithDrawer ? `${drawerHeight + 12}px` : undefined }}
     >
       <HeroHeader hidden={hideHeader} title={headerTitle} />
 
       <div
-        className="flex min-h-[calc(100dvh-6rem)] items-center justify-center pb-5 transition-transform duration-300 ease-out sm:min-h-[calc(100dvh-7rem)] max-[height:430px]:min-h-0 max-[height:430px]:items-start max-[height:430px]:pb-2"
+        className={[
+          "flex justify-center transition-transform duration-300 ease-out",
+          isCompactSmartphone ? "min-h-0 items-start pb-1" : "min-h-[calc(100dvh-6rem)] items-center pb-5 sm:min-h-[calc(100dvh-7rem)]",
+        ].join(" ")}
         style={{ transform: `translateY(-${viewerLift}px)` }}
       >
         {/* Spacing between the fretboard panel and the caption below it. */}
-        <div className="grid w-full justify-items-center gap-1 px-1 sm:px-3 md:px-4 max-[height:430px]:gap-0.5 max-[height:430px]:px-0">
+        <div className={["grid w-full justify-items-center", isCompactSmartphone ? "gap-0.5 px-0" : "gap-1 px-1 sm:px-3 md:px-4"].join(" ")}>
           <OutputPanel isSmartphone={isSmartphone} model={renderedView} visualSettings={effectiveVisualSettings} />
           <FretboardCaptionSelectors
             endFret={endFret}
