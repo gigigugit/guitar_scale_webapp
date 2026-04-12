@@ -1,5 +1,6 @@
-const captionClassName = "text-[0.9rem] text-[#6d5a4e]";
-const selectClassName = "min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10";
+const captionClassName = "text-[0.9rem] text-[#6d5a4e] max-[height:430px]:text-[0.82rem]";
+const selectClassName =
+  "min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10 max-[height:430px]:min-h-7 max-[height:430px]:px-2.5 max-[height:430px]:py-0.5 max-[height:430px]:text-[0.76rem]";
 const separatorClassName = "text-[#8d7666]";
 
 export default function FretboardCaptionSelectors({
@@ -25,7 +26,7 @@ export default function FretboardCaptionSelectors({
   const highFretOptions = Array.from({ length: maxFret }, (_, index) => index + 1);
 
   return (
-    <div className={[captionClassName, "flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-center"].join(" ")}>
+    <div className={[captionClassName, "flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center max-[height:430px]:gap-x-1 max-[height:430px]:gap-y-0.5"].join(" ")}>
       <select className={selectClassName} onChange={(event) => onKeyChange(event.target.value)} value={selectedKey}>
         {keyOptions.map((option) => (
           <option key={option} value={option}>
@@ -64,7 +65,7 @@ export default function FretboardCaptionSelectors({
 
       <span className={separatorClassName}>|</span>
 
-      <span className="text-[0.82rem] font-semibold text-[#8d7666]">Frets</span>
+      <span className="text-[0.82rem] font-semibold text-[#8d7666] max-[height:430px]:text-[0.76rem]">Frets</span>
       <select className={selectClassName} onChange={(event) => onStartFretChange(event.target.value)} value={startFret}>
         {lowFretOptions.map((option) => (
           <option key={option} value={option}>
