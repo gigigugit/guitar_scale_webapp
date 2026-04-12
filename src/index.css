@@ -4,16 +4,28 @@
 
 :root {
   color-scheme: light;
+  background: #f4ebde;
 }
 
 html,
 body,
 #root {
   min-height: 100%;
+  width: 100%;
+}
+
+html,
+body {
+  background: #f4ebde;
 }
 
 body {
   margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 ::selection {
