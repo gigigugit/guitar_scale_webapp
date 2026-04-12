@@ -5,6 +5,8 @@ import { getGraphicFretboardMetrics } from "./GraphicFretboard";
 export default function OutputPanel({ isSmartphone = false, model, visualSettings = DEFAULT_FRETBOARD_VISUAL_SETTINGS }) {
   const metrics = getGraphicFretboardMetrics(model, visualSettings);
   const smartphoneAspectRatio = metrics ? `${metrics.svgWidth} / ${metrics.svgHeight}` : undefined;
+  const frameClassName = isSmartphone ? "w-full" : "h-[clamp(300px,46vh,430px)]";
+  const frameStyle = isSmartphone ? { aspectRatio: smartphoneAspectRatio } : undefined;
 
   return (
     // Outer panel padding around the fretboard display. Reduce these values to let the SVG sit closer to the dark rounded panel edge.
@@ -20,7 +22,7 @@ export default function OutputPanel({ isSmartphone = false, model, visualSetting
         paddingBottom: `${visualSettings.panelPaddingBottom}px`,
       }}
     >
-      <div className={isSmartphone ? "w-full" : "h-[clamp(300px,46vh,430px)]"} style={isSmartphone ? { aspectRatio: smartphoneAspectRatio } : undefined}>
+      <div className={frameClassName} style={frameStyle}>
         <GraphicFretboard model={model} visualSettings={visualSettings} />
       </div>
     </section>

@@ -69,7 +69,7 @@ export default function FretboardApp() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [drawerHeight, setDrawerHeight] = useState(0);
   const [visualSettings, setVisualSettings] = useState(loadFretboardVisualSettings);
-  const [isSmartphone, setIsSmartphone] = useState(detectSmartphone);
+  const [isSmartphone, setIsSmartphone] = useState(() => detectSmartphone());
 
   const tuningOptions = Object.keys(INSTRUMENTS[instrument]);
   const currentTuning = INSTRUMENTS[instrument][tuningName];
