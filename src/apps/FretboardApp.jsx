@@ -41,10 +41,10 @@ function detectSmartphone() {
   const mediaMatch = typeof window.matchMedia === "function" ? window.matchMedia(SMARTPHONE_MEDIA_QUERY).matches : false;
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const narrowViewport = window.innerWidth <= SMARTPHONE_MAX_WIDTH;
-  const compactScreen = Math.min(window.screen?.width ?? window.innerWidth, window.screen?.height ?? window.innerHeight) <= SMARTPHONE_MAX_WIDTH;
+  const handsetSizedScreen = (window.screen?.width ?? window.innerWidth) <= SMARTPHONE_MAX_WIDTH;
   const mobileAgentMatch = MOBILE_USER_AGENT_PATTERN.test(userAgent);
 
-  return mediaMatch || mobileAgentMatch || (narrowViewport && compactScreen);
+  return mobileAgentMatch || (narrowViewport && (mediaMatch || handsetSizedScreen));
 }
 
 function fallbackCopy(text) {
@@ -103,7 +103,6 @@ export default function FretboardApp() {
     const mediaQuery = window.matchMedia(SMARTPHONE_MEDIA_QUERY);
     const syncSmartphoneState = () => setIsSmartphone(detectSmartphone());
 
-    syncSmartphoneState();
     if (typeof mediaQuery.addEventListener === "function") {
       mediaQuery.addEventListener("change", syncSmartphoneState);
     } else if (typeof mediaQuery.addListener === "function") {
