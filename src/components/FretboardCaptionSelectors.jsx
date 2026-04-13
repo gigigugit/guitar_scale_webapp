@@ -1,7 +1,7 @@
-const captionClassName = "text-[0.9rem] text-[#6d5a4e] max-[height:430px]:text-[0.82rem]";
+const captionClassName = "text-[0.9rem] text-[#6d5a4e] max-[height:430px]:text-[0.76rem]";
 const selectClassName =
-  "min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10 max-[height:430px]:min-h-7 max-[height:430px]:px-2.5 max-[height:430px]:py-0.5 max-[height:430px]:text-[0.76rem]";
-const separatorClassName = "text-[#8d7666]";
+  "min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10 max-[height:430px]:min-h-7 max-[height:430px]:px-2 max-[height:430px]:py-0.5 max-[height:430px]:text-[0.7rem] max-[height:430px]:tracking-[-0.02em]";
+const separatorClassName = "text-[#8d7666] max-[height:430px]:text-[0.72rem]";
 
 export default function FretboardCaptionSelectors({
   selectedKey,
@@ -26,61 +26,63 @@ export default function FretboardCaptionSelectors({
   const highFretOptions = Array.from({ length: maxFret }, (_, index) => index + 1);
 
   return (
-    <div className={[captionClassName, "flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center max-[height:430px]:gap-x-1 max-[height:430px]:gap-y-0.5"].join(" ")}>
-      <select className={selectClassName} onChange={(event) => onKeyChange(event.target.value)} value={selectedKey}>
-        {keyOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+    <div className={[captionClassName, "w-full overflow-x-auto overscroll-x-contain text-center"].join(" ")}>
+      <div className="mx-auto flex min-w-max items-center justify-center gap-x-1.5 gap-y-1 px-1 max-[height:430px]:gap-x-0.5 max-[height:430px]:px-0">
+        <select className={selectClassName} onChange={(event) => onKeyChange(event.target.value)} value={selectedKey}>
+          {keyOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
 
-      <select className={selectClassName} onChange={(event) => onScaleChange(event.target.value)} value={scaleName}>
-        {scaleOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        <select className={selectClassName} onChange={(event) => onScaleChange(event.target.value)} value={scaleName}>
+          {scaleOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
 
-      <span className={separatorClassName}>|</span>
+        <span className={separatorClassName}>|</span>
 
-      <select className={selectClassName} onChange={(event) => onInstrumentChange(event.target.value)} value={instrument}>
-        {instrumentOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        <select className={selectClassName} onChange={(event) => onInstrumentChange(event.target.value)} value={instrument}>
+          {instrumentOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
 
-      <span className={separatorClassName}>|</span>
+        <span className={separatorClassName}>|</span>
 
-      <select className={selectClassName} onChange={(event) => onTuningChange(event.target.value)} value={tuningName}>
-        {tuningOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        <select className={selectClassName} onChange={(event) => onTuningChange(event.target.value)} value={tuningName}>
+          {tuningOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
 
-      <span className={separatorClassName}>|</span>
+        <span className={separatorClassName}>|</span>
 
-      <span className="text-[0.82rem] font-semibold text-[#8d7666] max-[height:430px]:text-[0.76rem]">Frets</span>
-      <select className={selectClassName} onChange={(event) => onStartFretChange(event.target.value)} value={startFret}>
-        {lowFretOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-      <span className={separatorClassName}>-</span>
-      <select className={selectClassName} onChange={(event) => onEndFretChange(event.target.value)} value={endFret}>
-        {highFretOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        <span className="text-[0.82rem] font-semibold text-[#8d7666] max-[height:430px]:text-[0.7rem] max-[height:430px]:tracking-[-0.02em]">Frets</span>
+        <select className={selectClassName} onChange={(event) => onStartFretChange(event.target.value)} value={startFret}>
+          {lowFretOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <span className={separatorClassName}>-</span>
+        <select className={selectClassName} onChange={(event) => onEndFretChange(event.target.value)} value={endFret}>
+          {highFretOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
