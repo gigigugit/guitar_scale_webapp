@@ -91,8 +91,8 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
           <g key={`string-${stringRow.label}-${stringRow.stringIndex}`}>
             {/* Left string-label placement. Tighten this offset to reduce the left gutter. */}
             <text
-              fill="#f5d2ab"
-              fontFamily="Trebuchet MS, Segoe UI, sans-serif"
+              fill={visualSettings.stringLabelColor}
+              fontFamily={visualSettings.fretboardFontFamily}
               fontSize={visualSettings.stringLabelFontSize}
               textAnchor="end"
               x={leftPad - 10}
@@ -101,7 +101,7 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
               {stringRow.label}
             </text>
             <line
-              stroke="#d8bb96"
+              stroke={visualSettings.stringLineColor}
               strokeWidth={1.8}
               x1={leftPad}
               x2={boardEndX}
@@ -113,8 +113,8 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
 
         {model.showOpenStrings ? (
           <text
-            fill="#f0cfaa"
-            fontFamily="Trebuchet MS, Segoe UI, sans-serif"
+            fill={visualSettings.openFretLabelColor}
+            fontFamily={visualSettings.fretboardFontFamily}
             fontSize={visualSettings.openFretLabelSize}
             textAnchor="middle"
             x={leftPad + openLaneWidth / 2}
@@ -131,11 +131,11 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
           return (
             <g key={`fret-boundary-${offset}`}>
               {/* Fret guide line reach above and below the strings. */}
-              <line stroke="#8b684e" strokeWidth={model.showOpenStrings && offset === 0 ? 4 : 1.75} x1={x} x2={x} y1={boardTopY - 5} y2={boardBottomY + 8} />
+              <line stroke={visualSettings.fretLineColor} strokeWidth={model.showOpenStrings && offset === 0 ? 4 : 1.75} x1={x} x2={x} y1={boardTopY - 5} y2={boardBottomY + 8} />
               {offset < fretCount ? (
                 <text
-                  fill="#f0cfaa"
-                  fontFamily="Trebuchet MS, Segoe UI, sans-serif"
+                  fill={visualSettings.fretNumberColor}
+                  fontFamily={visualSettings.fretboardFontFamily}
                   fontSize={visualSettings.fretNumberFontSize}
                   textAnchor="middle"
                   x={x + fretWidth / 2}
@@ -155,7 +155,7 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
             const markerX = xForNote(fret);
             const markerY = boardTopY + (boardBottomY - boardTopY) / 2;
 
-            return <circle key={`marker-${fret}`} cx={markerX} cy={markerY} fill="#6f4a35" opacity="0.32" r="5" />;
+            return <circle key={`marker-${fret}`} cx={markerX} cy={markerY} fill={visualSettings.markerColor} opacity={visualSettings.markerOpacity} r="5" />;
           })}
 
         {model.strings.flatMap((stringRow, rowIndex) =>
@@ -167,11 +167,11 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
               return (
                 <g key={`${stringRow.stringIndex}-${note.fret}-${note.value}`}>
                   {/* Actual note-circle render using the radius returned by noteRadius(). */}
-                  <circle cx={xForNote(note.fret)} cy={yForString(rowIndex)} fill="#f3d1a7" r={radius} />
+                  <circle cx={xForNote(note.fret)} cy={yForString(rowIndex)} fill={visualSettings.noteFillColor} r={radius} />
                   <text
                     dominantBaseline="middle"
-                    fill="#4a2f20"
-                    fontFamily="Trebuchet MS, Segoe UI, sans-serif"
+                    fill={visualSettings.noteTextColor}
+                    fontFamily={visualSettings.fretboardFontFamily}
                     // Controls label size inside each note-circle. Usually adjust this together with noteRadius().
                     fontSize={note.value.length > 1 ? visualSettings.longNoteFontSize : visualSettings.shortNoteFontSize}
                     fontWeight="700"

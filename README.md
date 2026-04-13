@@ -11,6 +11,14 @@ npm run dev
 
 Open the local URL printed by Vite, usually `http://localhost:5173`.
 
+To make the app available on your local network:
+
+```bash
+npm run dev:lan
+```
+
+Open the `Network` URL printed by Vite from another device on the same network.
+
 ## Build for production
 
 ```bash
@@ -33,6 +41,15 @@ After that, every push to `main` will build and deploy the site.
 For this repository, the expected Pages URL is:
 
 `https://gigigugit.github.io/guitar_scale_webapp/`
+
+## Install on mobile
+
+For a fullscreen-like mobile experience, install the app to your home screen.
+
+- On iPhone or iPad in Safari: tap `Share` -> `Add to Home Screen`.
+- On Android browsers that support install: use the browser menu and choose `Install app` or `Add to Home screen`.
+
+The mobile app is configured for standalone launch and landscape orientation.
 
 ## Features
 

@@ -1,19 +1,53 @@
-const fieldClassName = "h-10 w-full rounded-[14px] border border-[#d8cec4] bg-[#fbf8f4] px-3.5 text-[0.92rem] text-[#3a2b22] shadow-[0_2px_7px_rgba(91,56,36,0.08)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10 md:h-11";
-const buttonClassName = "h-10 rounded-full border border-[#d8cec4] bg-[#fbf8f4] px-4 text-[0.86rem] font-semibold text-[#5b3824] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[#5b3824]/10";
-const primaryButtonClassName = "h-10 rounded-full border border-[#6a4531] bg-[#5b3824] px-4 text-[0.86rem] font-semibold text-[#f8dfc3] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[#5b3824]/15";
-const cardClassName = "rounded-[22px] border border-[#dccdc1] bg-[rgba(255,255,255,0.62)] p-4 shadow-[0_10px_24px_rgba(91,56,36,0.08)]";
-const tileClassName = "rounded-[18px] border border-[#dfd2c7] bg-[#fffaf6] p-3 shadow-[0_4px_12px_rgba(91,56,36,0.05)]";
-const sectionTitleClassName = "m-0 text-[0.96rem] font-semibold uppercase tracking-[0.15em] text-[#5a4030]";
-const tileLabelClassName = "block text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#8b7668]";
-const optionButtonBaseClassName = "rounded-full border px-3.5 py-2 text-[0.85rem] font-semibold leading-none transition focus:outline-none focus:ring-4 focus:ring-[#5b3824]/10";
+const fieldClassName = "h-9 w-full rounded-[12px] border px-3 text-[0.88rem] shadow-[0_2px_7px_rgba(91,56,36,0.08)] outline-none transition focus:ring-4 focus:ring-[color:var(--theme-accent)]/10 sm:h-10 sm:rounded-[14px] sm:px-3.5 sm:text-[0.92rem] md:h-11";
+const buttonClassName = "h-9 rounded-full border px-3.5 text-[0.82rem] font-semibold transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/10 sm:h-10 sm:px-4 sm:text-[0.86rem]";
+const primaryButtonClassName = "h-9 rounded-full border px-3.5 text-[0.82rem] font-semibold transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/15 sm:h-10 sm:px-4 sm:text-[0.86rem]";
+const cardClassName = "rounded-[20px] border p-3.5 shadow-[0_10px_24px_rgba(91,56,36,0.08)] sm:rounded-[22px] sm:p-4";
+const tileClassName = "rounded-[16px] border p-2.5 shadow-[0_4px_12px_rgba(91,56,36,0.05)] sm:rounded-[18px] sm:p-3";
+const sectionTitleClassName = "m-0 text-[0.9rem] font-semibold uppercase tracking-[0.14em] sm:text-[0.96rem] sm:tracking-[0.15em]";
+const tileLabelClassName = "block text-[0.68rem] font-semibold uppercase tracking-[0.16em] sm:text-[0.72rem] sm:tracking-[0.18em]";
+const optionButtonBaseClassName = "rounded-full border px-3 py-1.5 text-[0.82rem] font-semibold leading-none transition focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/10 sm:px-3.5 sm:py-2 sm:text-[0.85rem]";
 const degreeButtonClassName = (checked, disabled) =>
   [
-    "relative min-h-0 rounded-full border px-3 py-2 text-center text-[0.9rem] font-semibold leading-none shadow-[0_4px_12px_rgba(91,56,36,0.05)] transition",
-    checked && !disabled
-      ? "border-[#7c5843] bg-[linear-gradient(180deg,rgba(91,56,36,0.92),rgba(115,74,51,0.92))] text-[#f7dcc0]"
-      : "border-[#ded2c7] bg-[#fffaf6] text-[#6f5c50]",
+    "relative min-h-0 rounded-full border px-2.5 py-1.75 text-center text-[0.82rem] font-semibold leading-none shadow-[0_4px_12px_rgba(91,56,36,0.05)] transition sm:px-3 sm:py-2 sm:text-[0.9rem]",
     disabled ? "opacity-45" : "cursor-pointer hover:-translate-y-px",
   ].join(" ");
+
+const fieldStyle = {
+  background: "var(--theme-surface)",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-app-text)",
+  fontFamily: "var(--theme-ui-font)",
+};
+const buttonStyle = {
+  background: "var(--theme-surface)",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-accent)",
+  fontFamily: "var(--theme-ui-font)",
+};
+const primaryButtonStyle = {
+  background: "var(--theme-accent)",
+  borderColor: "var(--theme-accent-strong)",
+  color: "var(--theme-accent-text)",
+  fontFamily: "var(--theme-ui-font)",
+};
+const cardStyle = {
+  background: "var(--theme-surface-strong)",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-app-text)",
+};
+const highlightCardStyle = {
+  background: "linear-gradient(180deg, var(--theme-surface-strong), var(--theme-surface))",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-app-text)",
+};
+const tileStyle = {
+  background: "var(--theme-surface)",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-app-text)",
+};
+const sectionTitleStyle = { color: "var(--theme-app-text)", fontFamily: "var(--theme-ui-font)" };
+const tileLabelStyle = { color: "var(--theme-muted)", fontFamily: "var(--theme-ui-font)" };
+const mutedTextStyle = { color: "var(--theme-muted)", fontFamily: "var(--theme-ui-font)" };
 
 const dualSliderStyles = `
   .dual-fret-slider {
@@ -48,7 +82,7 @@ const dualSliderStyles = `
     margin-top: 7px;
     border: 2px solid #fefaf7;
     border-radius: 9999px;
-    background: #5b3824;
+    background: var(--theme-accent);
     box-shadow: 0 2px 8px rgba(91,56,36,0.25);
     cursor: pointer;
   }
@@ -59,17 +93,28 @@ const dualSliderStyles = `
     width: 18px;
     border: 2px solid #fefaf7;
     border-radius: 9999px;
-    background: #5b3824;
+    background: var(--theme-accent);
     box-shadow: 0 2px 8px rgba(91,56,36,0.25);
     cursor: pointer;
   }
 `;
 
 function optionButtonClassName(active) {
-  return [
-    optionButtonBaseClassName,
-    active ? "border-[#7c5843] bg-[#5b3824] text-[#f7dcc0]" : "border-[#d8cec4] bg-[#fbf8f4] text-[#5b3824] hover:-translate-y-px",
-  ].join(" ");
+  return [optionButtonBaseClassName, active ? "" : "hover:-translate-y-px"].join(" ");
+}
+
+function optionButtonStyle(active) {
+  return active
+    ? { background: "var(--theme-accent)", borderColor: "var(--theme-accent-strong)", color: "var(--theme-accent-text)", fontFamily: "var(--theme-ui-font)" }
+    : fieldStyle;
+}
+
+function degreeButtonStyle(checked, disabled) {
+  if (checked && !disabled) {
+    return { background: "linear-gradient(180deg, var(--theme-accent), var(--theme-accent-strong))", borderColor: "var(--theme-accent-strong)", color: "var(--theme-accent-text)", fontFamily: "var(--theme-ui-font)" };
+  }
+
+  return { background: "var(--theme-surface)", borderColor: "var(--theme-border)", color: "var(--theme-muted)", fontFamily: "var(--theme-ui-font)" };
 }
 
 function FretRangeSlider({ startFret, endFret, maxFret, onStartFretChange, onEndFretChange }) {
@@ -80,25 +125,25 @@ function FretRangeSlider({ startFret, endFret, maxFret, onStartFretChange, onEnd
     <div className="grid gap-3">
       <style>{dualSliderStyles}</style>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-[#8c7769]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.14em] sm:text-[0.78rem] sm:tracking-[0.16em]" style={mutedTextStyle}>
         <span>Fret Region</span>
-        <div className="flex gap-2 text-[0.8rem] tracking-normal text-[#5b3824]">
-          <span className="rounded-full border border-[#d9cbc0] bg-[#fffaf6] px-2.5 py-1">Start {startFret}</span>
-          <span className="rounded-full border border-[#d9cbc0] bg-[#fffaf6] px-2.5 py-1">End {endFret}</span>
+        <div className="flex gap-2 text-[0.74rem] tracking-normal sm:text-[0.8rem]" style={{ color: "var(--theme-accent)", fontFamily: "var(--theme-ui-font)" }}>
+          <span className="rounded-full border px-2.5 py-1" style={tileStyle}>Start {startFret}</span>
+          <span className="rounded-full border px-2.5 py-1" style={tileStyle}>End {endFret}</span>
         </div>
       </div>
 
       <div className="relative h-8">
-        <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-[#e5d8cd]" />
+        <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full" style={{ background: "var(--theme-border)" }} />
         <div
-          className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,#7c5843,#b57b54)]"
-          style={{ left: `${startPercent}%`, width: `${Math.max(endPercent - startPercent, 0)}%` }}
+          className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full"
+          style={{ background: "linear-gradient(90deg, var(--theme-accent), var(--theme-accent-strong))", left: `${startPercent}%`, width: `${Math.max(endPercent - startPercent, 0)}%` }}
         />
         <input className="dual-fret-slider" max={endFret} min={0} onChange={(event) => onStartFretChange(event.target.value)} type="range" value={startFret} />
         <input className="dual-fret-slider" max={maxFret} min={startFret} onChange={(event) => onEndFretChange(event.target.value)} type="range" value={endFret} />
       </div>
 
-      <div className="flex items-center justify-between text-[0.76rem] font-semibold uppercase tracking-[0.16em] text-[#9a8373]">
+      <div className="flex items-center justify-between text-[0.7rem] font-semibold uppercase tracking-[0.14em] sm:text-[0.76rem] sm:tracking-[0.16em]" style={mutedTextStyle}>
         <span>0</span>
         <span>12</span>
         <span>{maxFret}</span>
@@ -136,18 +181,18 @@ export default function ControlsPanel({
   onSave,
 }) {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5 sm:gap-3">
       <div className="grid gap-4 xl:grid-cols-[1.28fr_0.92fr]">
         <div className="grid gap-3">
-          <div className={cardClassName}>
+          <div className={cardClassName} style={cardStyle}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className={sectionTitleClassName}>Scale Setup</h3>
+              <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Scale Setup</h3>
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <label className={tileClassName}>
-                <span className={tileLabelClassName}>Key</span>
-                <select className={[fieldClassName, "mt-2"].join(" ")} value={selectedKey} onChange={(event) => onKeyChange(event.target.value)}>
+              <label className={tileClassName} style={tileStyle}>
+                <span className={tileLabelClassName} style={tileLabelStyle}>Key</span>
+                <select className={[fieldClassName, "mt-2"].join(" ")} style={fieldStyle} value={selectedKey} onChange={(event) => onKeyChange(event.target.value)}>
                   {keyOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -156,9 +201,9 @@ export default function ControlsPanel({
                 </select>
               </label>
 
-              <label className={tileClassName}>
-                <span className={tileLabelClassName}>Scale</span>
-                <select className={[fieldClassName, "mt-2"].join(" ")} value={scaleName} onChange={(event) => onScaleChange(event.target.value)}>
+              <label className={tileClassName} style={tileStyle}>
+                <span className={tileLabelClassName} style={tileLabelStyle}>Scale</span>
+                <select className={[fieldClassName, "mt-2"].join(" ")} style={fieldStyle} value={scaleName} onChange={(event) => onScaleChange(event.target.value)}>
                   {scaleOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -167,11 +212,11 @@ export default function ControlsPanel({
                 </select>
               </label>
 
-              <div className={tileClassName}>
-                <span className={tileLabelClassName}>Label Mode</span>
+              <div className={tileClassName} style={tileStyle}>
+                <span className={tileLabelClassName} style={tileLabelStyle}>Label Mode</span>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {displayModes.map((option) => (
-                    <button key={option} className={optionButtonClassName(option === displayMode)} onClick={() => onDisplayModeChange(option)} type="button">
+                    <button key={option} className={optionButtonClassName(option === displayMode)} onClick={() => onDisplayModeChange(option)} style={optionButtonStyle(option === displayMode)} type="button">
                       {option}
                     </button>
                   ))}
@@ -179,23 +224,23 @@ export default function ControlsPanel({
               </div>
             </div>
 
-            <div className="mt-3 rounded-[18px] border border-[#dfd2c7] bg-[#fffaf6] p-3 shadow-[0_4px_12px_rgba(91,56,36,0.05)]">
+            <div className="mt-3 rounded-[18px] border p-3 shadow-[0_4px_12px_rgba(91,56,36,0.05)]" style={tileStyle}>
               <FretRangeSlider endFret={endFret} maxFret={maxFret} onEndFretChange={onEndFretChange} onStartFretChange={onStartFretChange} startFret={startFret} />
             </div>
           </div>
 
-          <div className={cardClassName}>
+          <div className={cardClassName} style={cardStyle}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className={sectionTitleClassName}>Interval Selector</h3>
-              <p className="m-0 text-[0.84rem] text-[#7c685a]">Toggle the degrees you want visible on the board.</p>
+              <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Interval Selector</h3>
+              <p className="m-0 text-[0.84rem]" style={mutedTextStyle}>Toggle the degrees you want visible on the board.</p>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-4 xl:grid-cols-7">
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-7">
               {noteLabels.map((label, index) => {
                 const checked = noteSelections[index];
                 const disabled = index >= scaleLength;
 
                 return (
-                  <label key={label} className={degreeButtonClassName(checked, disabled)}>
+                  <label key={label} className={degreeButtonClassName(checked, disabled)} style={degreeButtonStyle(checked, disabled)}>
                     <input
                       checked={checked}
                       className="absolute inset-0 cursor-pointer opacity-0"
@@ -212,14 +257,14 @@ export default function ControlsPanel({
         </div>
 
         <div className="grid gap-3">
-          <div className={[cardClassName, "bg-[linear-gradient(180deg,rgba(255,248,240,0.95),rgba(240,228,216,0.95))]"].join(" ")}>
-            <h3 className={sectionTitleClassName}>Instrument</h3>
+          <div className={cardClassName} style={highlightCardStyle}>
+            <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Instrument</h3>
             <div className="mt-3 grid gap-3">
               <div>
-                <span className={tileLabelClassName}>Instrument</span>
+                <span className={tileLabelClassName} style={tileLabelStyle}>Instrument</span>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {instrumentOptions.map((option) => (
-                    <button key={option} className={optionButtonClassName(option === instrument)} onClick={() => onInstrumentChange(option)} type="button">
+                    <button key={option} className={optionButtonClassName(option === instrument)} onClick={() => onInstrumentChange(option)} style={optionButtonStyle(option === instrument)} type="button">
                       {option}
                     </button>
                   ))}
@@ -227,10 +272,10 @@ export default function ControlsPanel({
               </div>
 
               <div>
-                <span className={tileLabelClassName}>Tuning</span>
+                <span className={tileLabelClassName} style={tileLabelStyle}>Tuning</span>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {tuningOptions.map((option) => (
-                    <button key={option} className={optionButtonClassName(option === tuningName)} onClick={() => onTuningChange(option)} type="button">
+                    <button key={option} className={optionButtonClassName(option === tuningName)} onClick={() => onTuningChange(option)} style={optionButtonStyle(option === tuningName)} type="button">
                       {option}
                     </button>
                   ))}
@@ -239,13 +284,13 @@ export default function ControlsPanel({
             </div>
           </div>
 
-          <div className={[cardClassName, "bg-[linear-gradient(180deg,rgba(255,248,240,0.95),rgba(240,228,216,0.95))]"].join(" ")}>
-            <h3 className={sectionTitleClassName}>Action</h3>
+          <div className={cardClassName} style={highlightCardStyle}>
+            <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Action</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <button className={buttonClassName} onClick={onCopy} type="button">
+              <button className={buttonClassName} onClick={onCopy} style={buttonStyle} type="button">
                 Copy Tab
               </button>
-              <button className={primaryButtonClassName} onClick={onSave} type="button">
+              <button className={primaryButtonClassName} onClick={onSave} style={primaryButtonStyle} type="button">
                 Save Tab
               </button>
             </div>

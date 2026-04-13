@@ -5,6 +5,43 @@
 :root {
   color-scheme: light;
   background: #f4ebde;
+  --theme-app-bg: #f4ebde;
+  --theme-app-bg-accent: #d8c2a4;
+  --theme-app-glow: #d9a973;
+  --theme-app-glow-soft: rgba(217, 169, 115, 0.34);
+  --theme-app-text: #402d22;
+  --theme-ui-font: "Trebuchet MS", "Segoe UI", sans-serif;
+  --theme-surface: #fbf8f4;
+  --theme-surface-strong: #fffaf6;
+  --theme-border: #d8cec4;
+  --theme-muted: #7a6658;
+  --theme-accent: #5b3824;
+  --theme-accent-strong: #734a33;
+  --theme-accent-text: #f8dfc3;
+  --theme-drawer-start: #fcf6ef;
+  --theme-drawer-end: #f4eadf;
+  --theme-drawer-border: #d9cbc0;
+  --theme-title-font: "Trebuchet MS", "Segoe UI", sans-serif;
+  --theme-title-color: #3d291e;
+  --theme-title-size-desktop: 1.85rem;
+  --theme-title-size-mobile: 1.3rem;
+  --theme-fretboard-font: "Trebuchet MS", "Segoe UI", sans-serif;
+  --theme-fretboard-panel: #5b3824;
+  --theme-string-label: #f5d2ab;
+  --theme-string-line: #d8bb96;
+  --theme-fret-line: #8b684e;
+  --theme-fret-number: #f0cfaa;
+  --theme-open-fret: #f0cfaa;
+  --theme-marker: #6f4a35;
+  --theme-marker-opacity: 0.32;
+  --theme-note-fill: #f3d1a7;
+  --theme-note-text: #4a2f20;
+  --theme-fretboard-shadow: rgba(91, 56, 36, 0.16);
+  --theme-selection: rgba(166, 80, 31, 0.24);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 html,
@@ -12,24 +49,33 @@ body,
 #root {
   min-height: 100%;
   width: 100%;
+  max-width: 100%;
 }
 
 html,
 body {
-  background: #f4ebde;
+  background:
+    radial-gradient(circle at top, var(--theme-app-glow-soft) 0%, transparent 38%),
+    linear-gradient(180deg, var(--theme-app-bg-accent) 0%, var(--theme-app-bg) 52%, var(--theme-app-bg) 100%);
 }
 
 body {
   margin: 0;
+  color: var(--theme-app-text);
+  font-family: var(--theme-ui-font);
+  overflow-x: hidden;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: clip;
 }
 
 ::selection {
-  background: rgba(166, 80, 31, 0.24);
+  background: var(--theme-selection);
 }
 
 @media (max-height: 430px) {

@@ -1,12 +1,32 @@
 import { FRETBOARD_VISUAL_SETTING_FIELDS } from "../lib/fretboardVisualSettings";
 
-const toggleClassName = "inline-flex rounded-full border border-[#d8cec4] bg-[#fbf8f4] p-0.5 shadow-[0_1px_4px_rgba(91,56,36,0.06)]";
+const sectionCardClassName = "rounded-[18px] border p-3.5 shadow-[0_8px_18px_rgba(91,56,36,0.05)]";
+const toggleClassName = "inline-flex rounded-full border p-0.5 shadow-[0_1px_4px_rgba(91,56,36,0.06)]";
 const toggleOptionClassName = "min-w-9 rounded-full px-2 py-1 text-[0.68rem] font-semibold leading-none transition focus:outline-none";
-const actionButtonClassName = "h-7 rounded-full border border-[#d8cec4] bg-[#fbf8f4] px-2.5 text-[0.72rem] font-semibold text-[#5b3824] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[#5b3824]/10";
-const primaryActionButtonClassName = "h-7 rounded-full border border-[#6a4531] bg-[#5b3824] px-2.5 text-[0.72rem] font-semibold text-[#f8dfc3] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[#5b3824]/15";
-const stepperButtonClassName = "inline-flex h-4.5 w-5 items-center justify-center rounded-[6px] border border-[#d8cec4] bg-[#fbf8f4] text-[0.68rem] font-semibold leading-none text-[#5b3824] shadow-[0_1px_2px_rgba(91,56,36,0.04)] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[#5b3824]/10";
-const valuePillClassName = "inline-flex min-w-10 items-center justify-center rounded-[8px] border border-[#ded2c7] bg-[#fffaf6] px-1.5 py-0.5 text-[0.68rem] font-semibold text-[#4d382c] shadow-[0_1px_2px_rgba(91,56,36,0.03)]";
-const fieldCardClassName = "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-1.5 rounded-[10px] border border-[#eadfd6] bg-[rgba(255,255,255,0.28)] px-2 py-1.5";
+const actionButtonClassName = "h-7 rounded-full border px-2.5 text-[0.72rem] font-semibold transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/10";
+const primaryActionButtonClassName = "h-7 rounded-full border px-2.5 text-[0.72rem] font-semibold transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/15";
+const stepperButtonClassName = "inline-flex h-4.5 w-5 items-center justify-center rounded-[6px] border text-[0.68rem] font-semibold leading-none shadow-[0_1px_2px_rgba(91,56,36,0.04)] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/10";
+const valuePillClassName = "inline-flex min-w-10 items-center justify-center rounded-[8px] border px-1.5 py-0.5 text-[0.68rem] font-semibold shadow-[0_1px_2px_rgba(91,56,36,0.03)]";
+const fieldCardClassName = "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-1.5 rounded-[10px] border px-2 py-1.5";
+
+const surfaceStyle = {
+  background: "var(--theme-surface)",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-app-text)",
+};
+
+const strongSurfaceStyle = {
+  background: "var(--theme-surface-strong)",
+  borderColor: "var(--theme-border)",
+  color: "var(--theme-app-text)",
+};
+
+const mutedTextStyle = { color: "var(--theme-muted)" };
+const accentButtonStyle = {
+  background: "var(--theme-accent)",
+  borderColor: "var(--theme-accent)",
+  color: "var(--theme-accent-text)",
+};
 
 function clampToField(value, field) {
   const next = Math.min(Math.max(value, field.min), field.max);
@@ -36,19 +56,19 @@ function NumericSettingControl({ field, onSettingChange, value }) {
   }
 
   return (
-    <div className={fieldCardClassName}>
+    <div className={fieldCardClassName} style={{ ...surfaceStyle, background: "rgba(255,255,255,0.18)" }}>
       <div className="min-w-0">
-        <span className="block text-[0.76rem] font-semibold leading-tight text-[#4d382c]">{field.label}</span>
-        <span className="mt-0.5 block text-[0.64rem] leading-snug text-[#7a6658]">{field.description}</span>
+        <span className="block text-[0.76rem] font-semibold leading-tight">{field.label}</span>
+        <span className="mt-0.5 block text-[0.64rem] leading-snug" style={mutedTextStyle}>{field.description}</span>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <span className={valuePillClassName}>{formatFieldValue(numericValue, field)}</span>
+        <span className={valuePillClassName} style={strongSurfaceStyle}>{formatFieldValue(numericValue, field)}</span>
         <div className="grid gap-1">
-          <button aria-label={`Increase ${field.label}`} className={stepperButtonClassName} onClick={() => nudge(1)} type="button">
+          <button aria-label={`Increase ${field.label}`} className={stepperButtonClassName} onClick={() => nudge(1)} style={surfaceStyle} type="button">
             +
           </button>
-          <button aria-label={`Decrease ${field.label}`} className={stepperButtonClassName} onClick={() => nudge(-1)} type="button">
+          <button aria-label={`Decrease ${field.label}`} className={stepperButtonClassName} onClick={() => nudge(-1)} style={surfaceStyle} type="button">
             -
           </button>
         </div>
@@ -57,29 +77,73 @@ function NumericSettingControl({ field, onSettingChange, value }) {
   );
 }
 
+function ColorSettingControl({ field, onSettingChange, value }) {
+  return (
+    <div className={fieldCardClassName} style={{ ...surfaceStyle, background: "rgba(255,255,255,0.18)" }}>
+      <div className="min-w-0">
+        <span className="block text-[0.76rem] font-semibold leading-tight">{field.label}</span>
+        <span className="mt-0.5 block text-[0.64rem] leading-snug" style={mutedTextStyle}>{field.description}</span>
+      </div>
+
+      <label className="flex items-center gap-1.5">
+        <span className={valuePillClassName} style={strongSurfaceStyle}>{value.toUpperCase()}</span>
+        <input
+          aria-label={field.label}
+          className="h-8 w-10 cursor-pointer rounded-[10px] border p-0"
+          onChange={(event) => onSettingChange(field.key, event.target.value)}
+          style={{ ...surfaceStyle, background: "transparent" }}
+          type="color"
+          value={value}
+        />
+      </label>
+    </div>
+  );
+}
+
+function SelectSettingControl({ field, onSettingChange, value }) {
+  return (
+    <div className={fieldCardClassName} style={{ ...surfaceStyle, background: "rgba(255,255,255,0.18)" }}>
+      <div className="min-w-0">
+        <span className="block text-[0.76rem] font-semibold leading-tight">{field.label}</span>
+        <span className="mt-0.5 block text-[0.64rem] leading-snug" style={mutedTextStyle}>{field.description}</span>
+      </div>
+
+      <select className="min-w-[8.5rem] rounded-[10px] border px-2 py-1 text-[0.72rem] font-semibold" onChange={(event) => onSettingChange(field.key, event.target.value)} style={strongSurfaceStyle} value={value}>
+        {field.options?.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function BooleanSettingControl({ field, onSettingChange, settings }) {
   const enabled = Boolean(settings[field.key]);
 
   return (
-    <div className={fieldCardClassName}>
+    <div className={fieldCardClassName} style={{ ...surfaceStyle, background: "rgba(255,255,255,0.18)" }}>
       <div className="min-w-0">
-        <span className="block text-[0.76rem] font-semibold leading-tight text-[#4d382c]">{field.label}</span>
-        <span className="mt-0.5 block text-[0.64rem] leading-snug text-[#7a6658]">{field.description}</span>
+        <span className="block text-[0.76rem] font-semibold leading-tight">{field.label}</span>
+        <span className="mt-0.5 block text-[0.64rem] leading-snug" style={mutedTextStyle}>{field.description}</span>
       </div>
 
-      <div className={toggleClassName} role="group" aria-label={field.label}>
+      <div className={toggleClassName} role="group" aria-label={field.label} style={surfaceStyle}>
         <button
           aria-pressed={!enabled}
-          className={`${toggleOptionClassName} ${!enabled ? "bg-[#5b3824] text-[#f8dfc3]" : "text-[#7a6658]"}`}
+          className={toggleOptionClassName}
           onClick={() => onSettingChange(field.key, false)}
+          style={!enabled ? accentButtonStyle : mutedTextStyle}
           type="button"
         >
           No
         </button>
         <button
           aria-pressed={enabled}
-          className={`${toggleOptionClassName} ${enabled ? "bg-[#5b3824] text-[#f8dfc3]" : "text-[#7a6658]"}`}
+          className={toggleOptionClassName}
           onClick={() => onSettingChange(field.key, true)}
+          style={enabled ? accentButtonStyle : mutedTextStyle}
           type="button"
         >
           Yes
@@ -90,27 +154,43 @@ function BooleanSettingControl({ field, onSettingChange, settings }) {
 }
 
 export default function VisualTweaksPanel({ onReset, onSave, onSettingChange, settings }) {
-  const fields = FRETBOARD_VISUAL_SETTING_FIELDS.flatMap((section) => section.fields.map((field) => ({ ...field, section: section.section })));
-
   return (
-    <section className="grid gap-1.5">
+    <section className="grid gap-3">
       <div className="flex flex-wrap justify-end gap-1.5">
-        <button className={actionButtonClassName} onClick={onReset} type="button">
+        <button className={actionButtonClassName} onClick={onReset} style={surfaceStyle} type="button">
           Reset
         </button>
-        <button className={primaryActionButtonClassName} onClick={onSave} type="button">
+        <button className={primaryActionButtonClassName} onClick={onSave} style={accentButtonStyle} type="button">
           Save
         </button>
       </div>
 
-      <div className="grid gap-1.5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {fields.map((field) => {
-          if (field.type === "boolean") {
-            return <BooleanSettingControl key={field.key} field={field} onSettingChange={onSettingChange} settings={settings} />;
-          }
+      <div className="grid gap-3">
+        {FRETBOARD_VISUAL_SETTING_FIELDS.map((section) => (
+          <section key={section.section} className={sectionCardClassName} style={strongSurfaceStyle}>
+            <div className="mb-2.5">
+              <h3 className="m-0 text-[0.84rem] font-semibold uppercase tracking-[0.16em]">{section.section}</h3>
+            </div>
 
-          return <NumericSettingControl key={field.key} field={field} onSettingChange={onSettingChange} value={settings[field.key]} />;
-        })}
+            <div className="grid gap-1.5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {section.fields.map((field) => {
+                if (field.type === "boolean") {
+                  return <BooleanSettingControl key={field.key} field={field} onSettingChange={onSettingChange} settings={settings} />;
+                }
+
+                if (field.type === "color") {
+                  return <ColorSettingControl key={field.key} field={field} onSettingChange={onSettingChange} value={settings[field.key]} />;
+                }
+
+                if (field.type === "select") {
+                  return <SelectSettingControl key={field.key} field={field} onSettingChange={onSettingChange} value={settings[field.key]} />;
+                }
+
+                return <NumericSettingControl key={field.key} field={field} onSettingChange={onSettingChange} value={settings[field.key]} />;
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     </section>
   );

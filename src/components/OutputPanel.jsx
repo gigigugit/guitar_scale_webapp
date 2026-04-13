@@ -1,5 +1,5 @@
 import GraphicFretboard from "./GraphicFretboard";
-import { DEFAULT_FRETBOARD_VISUAL_SETTINGS } from "../lib/fretboardVisualSettings";
+import { DEFAULT_FRETBOARD_VISUAL_SETTINGS, withAlpha } from "../lib/fretboardVisualSettings";
 import { getGraphicFretboardMetrics } from "./GraphicFretboard";
 
 export default function OutputPanel({ isSmartphone = false, model, visualSettings = DEFAULT_FRETBOARD_VISUAL_SETTINGS }) {
@@ -12,10 +12,12 @@ export default function OutputPanel({ isSmartphone = false, model, visualSetting
     // Outer panel padding around the fretboard display. Reduce these values to let the SVG sit closer to the dark rounded panel edge.
     <section
       className={[
-        "w-[min(100%,1260px)] overflow-hidden bg-[#5b3824] shadow-[0_26px_50px_rgba(91,56,36,0.16)]",
+        "w-[min(100%,1260px)] overflow-hidden",
         isSmartphone ? "rounded-[30px]" : "rounded-[38px]",
       ].join(" ")}
       style={{
+        background: visualSettings.fretboardPanelColor,
+        boxShadow: `0 26px 50px ${withAlpha(visualSettings.fretboardPanelColor, 0.16)}`,
         paddingLeft: `${visualSettings.panelPaddingX}px`,
         paddingRight: `${visualSettings.panelPaddingX}px`,
         paddingTop: `${visualSettings.panelPaddingTop}px`,
