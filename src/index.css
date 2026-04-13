@@ -31,3 +31,31 @@ body {
 ::selection {
   background: rgba(166, 80, 31, 0.24);
 }
+
+@media (max-height: 430px) {
+  .compact-height-caption {
+    font-size: 0.76rem;
+  }
+
+  .compact-height-caption-row {
+    column-gap: 0.125rem;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .compact-height-select {
+    min-height: 1.75rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    letter-spacing: -0.02em;
+  }
+
+  .compact-height-separator {
+    font-size: 0.72rem;
+  }
+
+  .compact-height-fret-label {
+    font-size: 0.7rem;
+    letter-spacing: -0.02em;
+  }
+}
