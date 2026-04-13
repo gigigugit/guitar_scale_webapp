@@ -1,7 +1,7 @@
-const captionClassName = "text-[0.9rem] text-[#6d5a4e] max-[height:430px]:text-[0.76rem]";
+const captionClassName = "compact-height-caption text-[0.9rem] text-[#6d5a4e]";
 const selectClassName =
-  "min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10 max-[height:430px]:min-h-7 max-[height:430px]:px-2 max-[height:430px]:py-0.5 max-[height:430px]:text-[0.7rem] max-[height:430px]:tracking-[-0.02em]";
-const separatorClassName = "text-[#8d7666] max-[height:430px]:text-[0.72rem]";
+  "compact-height-select min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10";
+const separatorClassName = "compact-height-separator text-[#8d7666]";
 
 export default function FretboardCaptionSelectors({
   selectedKey,
@@ -27,7 +27,7 @@ export default function FretboardCaptionSelectors({
 
   return (
     <div className={[captionClassName, "w-full overflow-x-auto overscroll-x-contain text-center"].join(" ")}>
-      <div className="mx-auto flex min-w-max items-center justify-center gap-x-1.5 gap-y-1 px-1 max-[height:430px]:gap-x-0.5 max-[height:430px]:px-0">
+      <div className="compact-height-caption-row mx-auto flex min-w-max items-center justify-center gap-x-1.5 gap-y-1 px-1">
         <select className={selectClassName} onChange={(event) => onKeyChange(event.target.value)} value={selectedKey}>
           {keyOptions.map((option) => (
             <option key={option} value={option}>
@@ -66,7 +66,7 @@ export default function FretboardCaptionSelectors({
 
         <span className={separatorClassName}>|</span>
 
-        <span className="text-[0.82rem] font-semibold text-[#8d7666] max-[height:430px]:text-[0.7rem] max-[height:430px]:tracking-[-0.02em]">Frets</span>
+        <span className="compact-height-fret-label text-[0.82rem] font-semibold text-[#8d7666]">Frets</span>
         <select className={selectClassName} onChange={(event) => onStartFretChange(event.target.value)} value={startFret}>
           {lowFretOptions.map((option) => (
             <option key={option} value={option}>

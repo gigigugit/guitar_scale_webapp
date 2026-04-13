@@ -32,6 +32,7 @@ const FIXED_MAX_FRET = 24;
 // Match Tailwind's `sm` breakpoint so the phone-specific viewer kicks in at the same width the layout starts stacking.
 const SMARTPHONE_MAX_WIDTH = 640;
 const COMPACT_SMARTPHONE_MAX_HEIGHT = 430;
+// Covers common phone-landscape viewports so they keep the mobile fretboard layout instead of switching to the taller desktop frame.
 const LANDSCAPE_SMARTPHONE_MAX_WIDTH = 950;
 const LANDSCAPE_SMARTPHONE_MAX_HEIGHT = 500;
 const MOBILE_USER_AGENT_PATTERN = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i;
@@ -76,6 +77,30 @@ function fallbackCopy(text) {
   helper.select();
   document.execCommand("copy");
   helper.remove();
+}
+
+function getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone }) {
+  if (isLandscapeSmartphone) {
+    return {
+      rootClassName: "relative min-h-dvh pt-3",
+      viewerClassName: "flex min-h-0 items-start justify-center pb-2 transition-transform duration-300 ease-out",
+      stackClassName: "grid w-full justify-items-center gap-1 px-2",
+    };
+  }
+
+  if (isCompactSmartphone) {
+    return {
+      rootClassName: "relative min-h-[calc(100dvh-0.25rem)] pt-0",
+      viewerClassName: "flex min-h-0 items-start justify-center pb-1 transition-transform duration-300 ease-out",
+      stackClassName: "grid w-full justify-items-center gap-0.5 px-0",
+    };
+  }
+
+  return {
+    rootClassName: "relative min-h-[calc(100dvh-1rem)] pt-1 sm:min-h-[calc(100dvh-1.5rem)]",
+    viewerClassName: "flex min-h-[calc(100dvh-6rem)] items-center justify-center pb-5 transition-transform duration-300 ease-out sm:min-h-[calc(100dvh-7rem)]",
+    stackClassName: "grid w-full justify-items-center gap-1 px-1 sm:px-3 md:px-4",
+  };
 }
 
 export default function FretboardApp() {
@@ -213,23 +238,10 @@ export default function FretboardApp() {
   const shouldLiftPanelWithDrawer = visualSettings.liftPanelWithDrawer;
   const viewerLift = controlsOpen && shouldLiftPanelWithDrawer ? Math.min(Math.max(drawerHeight * 0.34, 48), 150) : 0;
   const headerTitle = `${selectedKey} ${scaleName}`;
-  const hideHeader = viewerLift > 0 || (isCompactSmartphone && !isLandscapeSmartphone);
+  const hideHeaderInCompactMode = isCompactSmartphone && !isLandscapeSmartphone;
+  const hideHeader = viewerLift > 0 || hideHeaderInCompactMode;
   const effectiveVisualSettings = isSmartphone ? getSmartphoneOptimizedVisualSettings(visualSettings) : visualSettings;
-  const rootClassName = isLandscapeSmartphone
-    ? "relative min-h-dvh pt-3"
-    : isCompactSmartphone
-      ? "relative min-h-[calc(100dvh-0.25rem)] pt-0"
-      : "relative min-h-[calc(100dvh-1rem)] pt-1 sm:min-h-[calc(100dvh-1.5rem)]";
-  const viewerClassName = isLandscapeSmartphone
-    ? "flex min-h-0 items-start justify-center pb-2 transition-transform duration-300 ease-out"
-    : isCompactSmartphone
-      ? "flex min-h-0 items-start justify-center pb-1 transition-transform duration-300 ease-out"
-      : "flex min-h-[calc(100dvh-6rem)] items-center justify-center pb-5 transition-transform duration-300 ease-out sm:min-h-[calc(100dvh-7rem)]";
-  const stackClassName = isLandscapeSmartphone
-    ? "grid w-full justify-items-center gap-1 px-2"
-    : isCompactSmartphone
-      ? "grid w-full justify-items-center gap-0.5 px-0"
-      : "grid w-full justify-items-center gap-1 px-1 sm:px-3 md:px-4";
+  const { rootClassName, viewerClassName, stackClassName } = getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone });
   const controlSnapshot = {
     displayMode,
     displayModes: DISPLAY_MODES,
