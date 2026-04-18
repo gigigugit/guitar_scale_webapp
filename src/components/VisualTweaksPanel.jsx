@@ -165,6 +165,15 @@ export default function VisualTweaksPanel({ onReset, onSave, onSettingChange, se
         </button>
       </div>
 
+      {settings.draggableUiMode ? (
+        <div className={sectionCardClassName} style={{ ...strongSurfaceStyle, display: "grid", gap: "0.35rem" }}>
+          <span className="text-[0.76rem] font-semibold uppercase tracking-[0.14em]">Draggable UI Active</span>
+          <span className="text-[0.7rem] leading-snug" style={mutedTextStyle}>
+            Drag the highlighted edges on the fretboard panel to tune panel padding, board bounds, and the open-string lane without leaving the viewer.
+          </span>
+        </div>
+      ) : null}
+
       <div className="grid gap-3">
         {FRETBOARD_VISUAL_SETTING_FIELDS.map((section) => (
           <section key={section.section} className={sectionCardClassName} style={strongSurfaceStyle}>

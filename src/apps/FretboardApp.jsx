@@ -10,6 +10,7 @@ import VisualTweaksPanel from "../components/VisualTweaksPanel";
 import {
   buildDownloadName,
   DISPLAY_MODES,
+  getTuningStrings,
   INSTRUMENTS,
   NOTES_SHARP,
   renderFretboard,
@@ -28,12 +29,16 @@ import {
   loadFretboardVisualSettings,
   normalizeFretboardVisualSettings,
 } from "../lib/fretboardVisualSettings";
+import { getGraphicFretboardMetrics } from "../components/GraphicFretboard";
 
 const instrumentOptions = Object.keys(INSTRUMENTS);
 const scaleOptions = Object.keys(SCALE_INTERVALS);
 const defaultInstrument = instrumentOptions[0];
 const defaultTuning = Object.keys(INSTRUMENTS[defaultInstrument])[0];
-const FIXED_MAX_FRET = 24;
+const FIXED_MAX_FRET = 18;
+const INSTRUMENT_STRING_SPACING_STORAGE_KEY = "dragon-scales:instrument-string-spacing";
+const MIN_INSTRUMENT_STRING_SPACING_SCALE = 0.72;
+const MAX_INSTRUMENT_STRING_SPACING_SCALE = 1.55;
 // Match Tailwind's `sm` breakpoint so the phone-specific viewer kicks in at the same width the layout starts stacking.
 const SMARTPHONE_MAX_WIDTH = 640;
 const COMPACT_SMARTPHONE_MAX_HEIGHT = 430;
@@ -42,6 +47,98 @@ const LANDSCAPE_SMARTPHONE_MAX_WIDTH = 950;
 const LANDSCAPE_SMARTPHONE_MAX_HEIGHT = 500;
 const MOBILE_USER_AGENT_PATTERN = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i;
 const PWA_STATUS_EVENT = "dragon-scales:pwa-status";
+
+const DEFAULT_INSTRUMENT_STRING_SPACING = Object.fromEntries(instrumentOptions.map((option) => [option, 1]));
+
+function escapeXml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const entities = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&apos;',
+    };
+
+    return entities[character] ?? character;
+  });
+}
+
+function clampInstrumentStringSpacing(value) {
+  return Math.min(Math.max(value, MIN_INSTRUMENT_STRING_SPACING_SCALE), MAX_INSTRUMENT_STRING_SPACING_SCALE);
+}
+
+function normalizeInstrumentStringSpacing(candidate) {
+  const merged = { ...DEFAULT_INSTRUMENT_STRING_SPACING, ...(candidate ?? {}) };
+
+  return instrumentOptions.reduce((next, option) => {
+    const rawValue = Number(merged[option]);
+    next[option] = Number.isFinite(rawValue) ? clampInstrumentStringSpacing(rawValue) : DEFAULT_INSTRUMENT_STRING_SPACING[option];
+    return next;
+  }, {});
+}
+
+function loadInstrumentStringSpacing() {
+  if (typeof window === "undefined") {
+    return DEFAULT_INSTRUMENT_STRING_SPACING;
+  }
+
+  try {
+    const saved = window.localStorage.getItem(INSTRUMENT_STRING_SPACING_STORAGE_KEY);
+    if (!saved) {
+      return DEFAULT_INSTRUMENT_STRING_SPACING;
+    }
+
+    return normalizeInstrumentStringSpacing(JSON.parse(saved));
+  } catch {
+    return DEFAULT_INSTRUMENT_STRING_SPACING;
+  }
+}
+
+function InstrumentStringSpacingRail({ instrument, isSmartphone = false, onChange, value }) {
+  const percentValue = Math.round(value * 100);
+
+  return (
+    <div
+      className={[
+        "flex select-none flex-col items-center gap-2 rounded-[22px] border px-2 py-3 shadow-[0_16px_34px_rgba(32,20,15,0.16)] backdrop-blur-sm",
+        isSmartphone ? "w-14" : "w-16",
+      ].join(" ")}
+      style={{
+        background: "color-mix(in srgb, var(--theme-surface-strong) 78%, transparent)",
+        borderColor: "var(--theme-border)",
+        color: "var(--theme-app-text)",
+      }}
+    >
+      <span className="text-center text-[0.56rem] font-black uppercase tracking-[0.18em]" style={{ color: "var(--theme-muted)" }}>
+        String Gap
+      </span>
+      <span className="text-center text-[0.62rem] font-semibold leading-tight" style={{ color: "var(--theme-app-text)" }}>
+        {instrument}
+      </span>
+
+      <div className={["flex items-center justify-center", isSmartphone ? "h-32" : "h-40"].join(" ")}>
+        <input
+          aria-label={`${instrument} string spacing`}
+          className={["cursor-pointer accent-[var(--theme-accent)]", isSmartphone ? "w-28" : "w-36"].join(" ")}
+          max={MAX_INSTRUMENT_STRING_SPACING_SCALE}
+          min={MIN_INSTRUMENT_STRING_SPACING_SCALE}
+          onChange={(event) => onChange(event.target.value)}
+          step={0.01}
+          style={{ transform: "rotate(-90deg)" }}
+          type="range"
+          value={value}
+        />
+      </div>
+
+      <div className="grid justify-items-center gap-1 text-[0.56rem] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--theme-muted)" }}>
+        <span>Wide</span>
+        <span className="rounded-full border px-2 py-1 text-[0.64rem]" style={{ borderColor: "var(--theme-border)", color: "var(--theme-accent)" }}>{percentValue}%</span>
+        <span>Tight</span>
+      </div>
+    </div>
+  );
+}
 
 function detectIPadDevice() {
   if (typeof navigator === "undefined") {
@@ -320,9 +417,11 @@ export default function FretboardApp() {
   const [pwaStatus, setPwaStatus] = useState(null);
   const [isOffline, setIsOffline] = useState(() => (typeof navigator === "undefined" ? false : navigator.onLine === false));
   const reloadOnControllerChangeRef = useRef(false);
+  const fretboardSvgRef = useRef(null);
+  const [instrumentStringSpacing, setInstrumentStringSpacing] = useState(loadInstrumentStringSpacing);
 
   const tuningOptions = Object.keys(INSTRUMENTS[instrument]);
-  const currentTuning = INSTRUMENTS[instrument][tuningName];
+  const currentTuning = getTuningStrings(instrument, tuningName);
   const stringCount = currentTuning.length;
   const maxFret = FIXED_MAX_FRET;
 
@@ -377,6 +476,14 @@ export default function FretboardApp() {
       document.documentElement.style.setProperty(key, value);
     });
   }, [visualSettings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(INSTRUMENT_STRING_SPACING_STORAGE_KEY, JSON.stringify(instrumentStringSpacing));
+  }, [instrumentStringSpacing]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -494,6 +601,49 @@ export default function FretboardApp() {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportSvg() {
+    const svgElement = fretboardSvgRef.current;
+    const metrics = getGraphicFretboardMetrics(renderedView, effectiveVisualSettings);
+
+    if (!svgElement || !metrics) {
+      return;
+    }
+
+    const panelWidth = metrics.svgWidth + effectiveVisualSettings.panelPaddingX * 2;
+    const panelHeight = metrics.svgHeight + effectiveVisualSettings.panelPaddingTop + effectiveVisualSettings.panelPaddingBottom;
+    const panelRadius = isSmartphone ? 30 : 38;
+    const exportedInnerSvg = svgElement.cloneNode(true);
+    const title = `${selectedKey} ${scaleName} fretboard`;
+
+    exportedInnerSvg.removeAttribute("class");
+    exportedInnerSvg.removeAttribute("data-fretboard-svg");
+    exportedInnerSvg.removeAttribute("ref");
+    exportedInnerSvg.removeAttribute("role");
+    exportedInnerSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    exportedInnerSvg.setAttribute("width", String(metrics.svgWidth));
+    exportedInnerSvg.setAttribute("height", String(metrics.svgHeight));
+
+    const svgMarkup = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${panelWidth}" height="${panelHeight}" viewBox="0 0 ${panelWidth} ${panelHeight}">`,
+      `  <title>${escapeXml(title)}</title>`,
+      `  <rect width="${panelWidth}" height="${panelHeight}" rx="${panelRadius}" fill="${effectiveVisualSettings.fretboardPanelColor}" />`,
+      `  <g transform="translate(${effectiveVisualSettings.panelPaddingX} ${effectiveVisualSettings.panelPaddingTop})">`,
+      exportedInnerSvg.innerHTML,
+      "  </g>",
+      "</svg>",
+    ].join("\n");
+
+    const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = buildDownloadName(selectedKey, scaleName).replace(/\.txt$/, ".svg");
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleNoteToggle(index) {
     setNoteSelections((previous) => previous.map((value, currentIndex) => (currentIndex === index ? !value : value)));
   }
@@ -511,6 +661,15 @@ export default function FretboardApp() {
 
   function handleApplyThemePreset(presetId) {
     setVisualSettings((previous) => applyThemePreset(previous, presetId));
+  }
+
+  function handleInstrumentStringSpacingChange(value) {
+    const nextValue = clampInstrumentStringSpacing(Number(value));
+
+    setInstrumentStringSpacing((previous) => ({
+      ...previous,
+      [instrument]: Number.isFinite(nextValue) ? nextValue : previous[instrument] ?? 1,
+    }));
   }
 
   function handleSaveVisualSettings() {
@@ -581,7 +740,9 @@ export default function FretboardApp() {
   const headerTitle = `${selectedKey} ${scaleName}`;
   const hideHeaderInCompactMode = isCompactSmartphone && !isLandscapeSmartphone;
   const hideHeader = viewerLift > 0 || hideHeaderInCompactMode;
-  const effectiveVisualSettings = isSmartphone ? getResponsiveFretboardVisualSettings(visualSettings, viewportWidth, isLandscapeSmartphone) : visualSettings;
+  const currentInstrumentStringSpacing = instrumentStringSpacing[instrument] ?? 1;
+  const effectiveVisualSettingsBase = isSmartphone ? getResponsiveFretboardVisualSettings(visualSettings, viewportWidth, isLandscapeSmartphone) : visualSettings;
+  const effectiveVisualSettings = { ...effectiveVisualSettingsBase, instrumentStringSpacingScale: currentInstrumentStringSpacing };
   const { rootClassName, viewerClassName, stackClassName } = getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone, isSmartphone });
   const controlSnapshot = {
     displayMode,
@@ -617,6 +778,7 @@ export default function FretboardApp() {
           onCopy={handleCopy}
           onDisplayModeChange={setDisplayMode}
           onEndFretChange={handleEndFretChange}
+          onExportSvg={handleExportSvg}
           onInstrumentChange={handleInstrumentChange}
           onKeyChange={setSelectedKey}
           onNoteToggle={handleNoteToggle}
@@ -688,7 +850,31 @@ export default function FretboardApp() {
       >
         {/* Spacing between the fretboard panel and the caption below it. */}
         <div className={stackClassName}>
-          <OutputPanel isSmartphone={isSmartphone} model={renderedView} visualSettings={effectiveVisualSettings} />
+          <div className="relative">
+            <OutputPanel
+              baseVisualSettings={visualSettings}
+              isSmartphone={isSmartphone}
+              model={renderedView}
+              onVisualSettingChange={handleVisualSettingChange}
+              svgRef={fretboardSvgRef}
+              visualSettings={effectiveVisualSettings}
+            />
+            {visualSettings.showStringSpacingControl ? (
+              <div
+                className={[
+                  "absolute top-1/2 z-30 -translate-y-1/2",
+                  isSmartphone ? "right-2" : "-right-[4.8rem]",
+                ].join(" ")}
+              >
+                <InstrumentStringSpacingRail
+                  instrument={instrument}
+                  isSmartphone={isSmartphone}
+                  onChange={handleInstrumentStringSpacingChange}
+                  value={currentInstrumentStringSpacing}
+                />
+              </div>
+            ) : null}
+          </div>
           <FretboardCaptionSelectors
             endFret={endFret}
             instrument={instrument}

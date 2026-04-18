@@ -20,6 +20,11 @@ export const FONT_FAMILY_OPTIONS = [
   { label: "Monospace", value: '"IBM Plex Mono", "Courier New", monospace' },
 ];
 
+export const FRET_SPACING_MODE_OPTIONS = [
+  { label: "Uniform", value: "uniform" },
+  { label: "Scale-style", value: "tempered" },
+];
+
 const THEME_FIELD_KEYS = [
   "appBackgroundColor",
   "appBackgroundAccentColor",
@@ -350,6 +355,7 @@ export const FRETBOARD_VISUAL_SETTING_FIELDS = [
   {
     section: "Panel",
     fields: [
+      { key: "draggableUiMode", label: "Draggable UI mode", description: "Shows drag guides on the fretboard panel so layout edges can be adjusted directly.", type: "boolean" },
       { key: "panelPaddingX", label: "Side padding", description: "Space between the dark panel edge and the fretboard.", min: 0, max: 24, step: 1 },
       { key: "panelPaddingTop", label: "Top padding", description: "Space above the fretboard inside the dark panel.", min: 0, max: 24, step: 1 },
       { key: "panelPaddingBottom", label: "Bottom padding", description: "Space below the fretboard inside the dark panel.", min: 0, max: 24, step: 1 },
@@ -359,6 +365,8 @@ export const FRETBOARD_VISUAL_SETTING_FIELDS = [
   {
     section: "Board Layout",
     fields: [
+      { key: "showStringSpacingControl", label: "Show string distance control", description: "Shows the side rail used to change per-instrument string spacing.", type: "boolean" },
+      { key: "fretSpacingMode", label: "Fret spacing mode", description: "Choose between the current even fret grid and a mockup-style tapered fret layout.", type: "select", options: FRET_SPACING_MODE_OPTIONS },
       { key: "leftPad", label: "Left board padding", description: "Empty SVG space before the string lines begin.", min: 20, max: 80, step: 1 },
       { key: "topPad", label: "Top board padding", description: "Empty SVG space above the first string.", min: 0, max: 50, step: 1 },
       { key: "rightPad", label: "Right board padding", description: "Empty SVG space after the last visible fret.", min: 0, max: 40, step: 1 },
@@ -366,6 +374,8 @@ export const FRETBOARD_VISUAL_SETTING_FIELDS = [
       { key: "compactStringGap", label: "Dense string spacing", description: "Vertical spacing used when showing 6 or more strings.", min: 28, max: 60, step: 1 },
       { key: "standardStringGap", label: "Standard string spacing", description: "Vertical spacing used when showing 5 or fewer strings.", min: 28, max: 64, step: 1 },
       { key: "openLaneWidth", label: "Open string lane", description: "Horizontal width reserved for fret 0 when visible.", min: 0, max: 60, step: 1 },
+      { key: "nutLineWidth", label: "Nut width", description: "Stroke width for the main nut and any local string nuts.", min: 2, max: 10, step: 0.25 },
+      { key: "fretLineWidth", label: "Fret line width", description: "Stroke width for the other vertical fret lines.", min: 1, max: 6, step: 0.25 },
       { key: "preferredFretWidth", label: "Preferred fret spacing", description: "Base width used for each fret before compression.", min: 40, max: 90, step: 1 },
       { key: "minFretWidth", label: "Minimum fret spacing", description: "Smallest width a fret can shrink to.", min: 24, max: 60, step: 1 },
       { key: "extraFretCompression", label: "Extra fret compression", description: "How quickly fret spacing shrinks when many frets are shown.", min: 0, max: 3, step: 0.1 },
@@ -417,10 +427,13 @@ export const DEFAULT_FRETBOARD_VISUAL_SETTINGS = {
   titleColor: "#3d291e",
   titleFontSizeDesktop: 1.85,
   titleFontSizeMobile: 1.3,
+  draggableUiMode: false,
   panelPaddingX: 8,
   panelPaddingTop: 8,
   panelPaddingBottom: 8,
   liftPanelWithDrawer: false,
+  showStringSpacingControl: false,
+  fretSpacingMode: "uniform",
   leftPad: 44,
   topPad: 28,
   rightPad: 10,
@@ -428,6 +441,8 @@ export const DEFAULT_FRETBOARD_VISUAL_SETTINGS = {
   compactStringGap: 39,
   standardStringGap: 44,
   openLaneWidth: 34,
+  nutLineWidth: 4,
+  fretLineWidth: 1.75,
   preferredFretWidth: 60,
   minFretWidth: 38,
   extraFretCompression: 1.4,
@@ -470,6 +485,8 @@ export function getResponsiveFretboardVisualSettings(settings, viewportWidth = S
     compactStringGap: normalized.compactStringGap * scale,
     standardStringGap: normalized.standardStringGap * scale,
     openLaneWidth: normalized.openLaneWidth * scale,
+    nutLineWidth: normalized.nutLineWidth * scale,
+    fretLineWidth: normalized.fretLineWidth * scale,
     preferredFretWidth: normalized.preferredFretWidth * scale,
     minFretWidth: normalized.minFretWidth * scale,
     stringLabelFontSize: normalized.stringLabelFontSize * scale,

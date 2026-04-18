@@ -9,13 +9,20 @@ function clampMetric(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function equalTemperedDistance(boundaryValue) {
+  return 1 - Math.pow(2, -boundaryValue / 12);
+}
+
 function getVerticalBoardMetrics(stringCount, visualSettings) {
   const referenceStringCount = 6;
   const referenceBoardSpan = visualSettings.compactStringGap * (referenceStringCount - 1);
   const stringSegments = Math.max(stringCount - 1, 1);
   const minGap = Math.min(visualSettings.compactStringGap, visualSettings.standardStringGap) * 0.9;
   const maxGap = Math.max(visualSettings.compactStringGap, visualSettings.standardStringGap) * 1.3;
-  const rowGap = clampMetric(referenceBoardSpan / stringSegments, minGap, maxGap);
+  const spacingScaleRaw = Number(visualSettings.instrumentStringSpacingScale ?? 1);
+  const spacingScale = Number.isFinite(spacingScaleRaw) ? spacingScaleRaw : 1;
+  const baseRowGap = clampMetric(referenceBoardSpan / stringSegments, minGap, maxGap);
+  const rowGap = clampMetric(baseRowGap * spacingScale, minGap * 0.65, maxGap * 1.9);
   const missingStrings = Math.max(referenceStringCount - stringCount, 0);
   const topPad = clampMetric(visualSettings.topPad - missingStrings * 2, 8, visualSettings.topPad);
   const bottomPad = clampMetric(visualSettings.bottomPad - missingStrings * 1.5, 6, visualSettings.bottomPad);
@@ -63,7 +70,7 @@ export function getGraphicFretboardMetrics(model, visualSettings = DEFAULT_FRETB
   };
 }
 
-export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETBOARD_VISUAL_SETTINGS }) {
+export default function GraphicFretboard({ model, svgRef, visualSettings = DEFAULT_FRETBOARD_VISUAL_SETTINGS }) {
   const metrics = getGraphicFretboardMetrics(model, visualSettings);
 
   if (!metrics) {
@@ -72,45 +79,115 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
 
   // Internal SVG gutter values. These control how much empty space exists around the drawn fretboard.
   const { leftPad, topPad, rightPad, bottomPad, rowGap, openLaneWidth, fretCount, fretWidth, boardStartX, boardEndX, boardTopY, boardBottomY, svgWidth, svgHeight } = metrics;
+  const firstVisibleFret = model.showOpenStrings ? 1 : model.startFret;
+  const firstVisibleNut = model.showOpenStrings ? 0 : model.startFret;
+  const firstVisibleBoundary = model.showOpenStrings ? 0 : model.startFret;
+  const fretSpacingMode = visualSettings.fretSpacingMode ?? "uniform";
+  const nutLineWidth = Number(visualSettings.nutLineWidth ?? 4);
+  const fretLineWidth = Number(visualSettings.fretLineWidth ?? 1.75);
+  const stringLineWidth = 1.8;
+  const fretBoundaryValues = Array.from({ length: fretCount + 1 }, (_, offset) => (model.showOpenStrings ? offset : model.startFret + offset));
+  const fretBoundaryPositions = (() => {
+    if (fretSpacingMode !== "tempered") {
+      return fretBoundaryValues.map((_, offset) => boardStartX + offset * fretWidth);
+    }
+
+    const distances = fretBoundaryValues.map(equalTemperedDistance);
+    const startDistance = distances[0] ?? 0;
+    const endDistance = distances[distances.length - 1] ?? startDistance;
+
+    if (endDistance <= startDistance) {
+      return fretBoundaryValues.map((_, offset) => boardStartX + offset * fretWidth);
+    }
+
+    return distances.map((distance) => boardStartX + ((distance - startDistance) / (endDistance - startDistance)) * (boardEndX - boardStartX));
+  })();
+
+  const xForBoundaryIndex = (index) => {
+    const boundedIndex = Math.min(Math.max(index, 0), fretBoundaryPositions.length - 1);
+    return fretBoundaryPositions[boundedIndex];
+  };
+
+  const xForBoundaryValue = (boundary) => xForBoundaryIndex(boundary - firstVisibleBoundary);
+
+  const strokeWidthForBoundary = (boundary) => (model.showOpenStrings && boundary === 0 ? nutLineWidth : fretLineWidth);
 
   const xForNote = (fret) => {
     if (fret === 0 && model.showOpenStrings) {
       return leftPad + openLaneWidth / 2;
     }
 
-    const firstFretted = model.showOpenStrings ? 1 : model.startFret;
-    return boardStartX + (fret - firstFretted + 0.5) * fretWidth;
+    const startBoundaryIndex = Math.max(fret - firstVisibleFret, 0);
+    return (xForBoundaryIndex(startBoundaryIndex) + xForBoundaryIndex(startBoundaryIndex + 1)) / 2;
+  };
+
+  const xForStringStart = (stringRow) => {
+    if (model.showOpenStrings && stringRow.nutFret === 0) {
+      return leftPad;
+    }
+
+    if (model.showOpenStrings && stringRow.nutFret > 0) {
+      return xForNote(stringRow.nutFret);
+    }
+
+    const startBoundary = Math.max(stringRow.nutFret, firstVisibleBoundary);
+    const startStrokeWidth = stringRow.nutFret > firstVisibleNut ? nutLineWidth : strokeWidthForBoundary(startBoundary);
+    return xForBoundaryValue(startBoundary) - startStrokeWidth / 2;
+  };
+
+  const lastVisibleBoundary = fretBoundaryValues[fretBoundaryValues.length - 1];
+  const stringEndX = xForBoundaryValue(lastVisibleBoundary) + strokeWidthForBoundary(lastVisibleBoundary) / 2;
+
+  const xForStringLabel = (stringRow) => {
+    if (stringRow.nutFret > firstVisibleNut) {
+      return xForNote(stringRow.nutFret) - 18;
+    }
+
+    return leftPad - 10;
   };
 
   const yForString = (rowIndex) => boardTopY + rowIndex * rowGap;
 
+  const yExtentForLocalNutSegment = (rowIndex) => {
+    const currentY = yForString(rowIndex);
+    const previousY = rowIndex > 0 ? yForString(rowIndex - 1) : currentY;
+    const nextY = rowIndex < model.strings.length - 1 ? yForString(rowIndex + 1) : currentY;
+
+    if (rowIndex === model.strings.length - 1) {
+      return {
+        bottom: currentY,
+        top: previousY,
+      };
+    }
+
+    return {
+      bottom: nextY,
+      top: currentY,
+    };
+  };
+
+  const yExtentForFretBoundary = (fretBoundary) => {
+    const activeRowIndices = model.strings.reduce((rows, stringRow, rowIndex) => {
+      if (stringRow.nutFret <= fretBoundary) {
+        rows.push(rowIndex);
+      }
+
+      return rows;
+    }, []);
+
+    if (activeRowIndices.length === 0) {
+      return null;
+    }
+
+    return {
+      bottom: yForString(activeRowIndices[activeRowIndices.length - 1]),
+      top: yForString(activeRowIndices[0]),
+    };
+  };
+
   return (
     <div className="h-full w-full">
-      <svg className="block h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
-        {model.strings.map((stringRow, rowIndex) => (
-          <g key={`string-${stringRow.label}-${stringRow.stringIndex}`}>
-            {/* Left string-label placement. Tighten this offset to reduce the left gutter. */}
-            <text
-              fill={visualSettings.stringLabelColor}
-              fontFamily={visualSettings.fretboardFontFamily}
-              fontSize={visualSettings.stringLabelFontSize}
-              textAnchor="end"
-              x={leftPad - 10}
-              y={yForString(rowIndex) + 4}
-            >
-              {stringRow.label}
-            </text>
-            <line
-              stroke={visualSettings.stringLineColor}
-              strokeWidth={1.8}
-              x1={leftPad}
-              x2={boardEndX}
-              y1={yForString(rowIndex)}
-              y2={yForString(rowIndex)}
-            />
-          </g>
-        ))}
-
+      <svg className="block h-full w-full" data-fretboard-svg="true" preserveAspectRatio="xMidYMid meet" ref={svgRef} role="img" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
         {model.showOpenStrings ? (
           <text
             fill={visualSettings.openFretLabelColor}
@@ -125,26 +202,76 @@ export default function GraphicFretboard({ model, visualSettings = DEFAULT_FRETB
         ) : null}
 
         {Array.from({ length: fretCount + 1 }, (_, offset) => {
-          const x = boardStartX + offset * fretWidth;
-          const fretNumber = model.showOpenStrings ? offset + 1 : model.startFret + offset;
+          const x = xForBoundaryIndex(offset);
+          const fretBoundary = model.showOpenStrings ? offset : model.startFret + offset;
+          const fretLineExtent = yExtentForFretBoundary(fretBoundary);
 
           return (
             <g key={`fret-boundary-${offset}`}>
               {/* Fret guide line reach above and below the strings. */}
-              <line stroke={visualSettings.fretLineColor} strokeWidth={model.showOpenStrings && offset === 0 ? 4 : 1.75} x1={x} x2={x} y1={boardTopY - 5} y2={boardBottomY + 8} />
+              {fretLineExtent ? <line stroke={visualSettings.fretLineColor} strokeWidth={strokeWidthForBoundary(fretBoundary)} x1={x} x2={x} y1={fretLineExtent.top} y2={fretLineExtent.bottom} /> : null}
               {offset < fretCount ? (
                 <text
                   fill={visualSettings.fretNumberColor}
                   fontFamily={visualSettings.fretboardFontFamily}
                   fontSize={visualSettings.fretNumberFontSize}
                   textAnchor="middle"
-                  x={x + fretWidth / 2}
+                  x={(x + xForBoundaryIndex(offset + 1)) / 2}
                   y={10}
                 >
                   {/* Fret-number label position above the board. */}
                   {model.showOpenStrings ? offset + 1 : model.startFret + offset}
                 </text>
               ) : null}
+            </g>
+          );
+        })}
+
+        {model.strings.map((stringRow, rowIndex) => {
+          if (stringRow.nutFret <= firstVisibleNut || !fretBoundaryValues.includes(stringRow.nutFret)) {
+            return null;
+          }
+
+          const x = xForBoundaryValue(stringRow.nutFret);
+          const localNutExtent = yExtentForLocalNutSegment(rowIndex);
+
+          return (
+            <line
+              key={`local-nut-${stringRow.stringIndex}`}
+              stroke={visualSettings.fretLineColor}
+              strokeWidth={nutLineWidth}
+              x1={x}
+              x2={x}
+              y1={localNutExtent.top}
+              y2={localNutExtent.bottom}
+            />
+          );
+        })}
+
+        {model.strings.map((stringRow, rowIndex) => {
+          const stringStartX = xForStringStart(stringRow);
+
+          return (
+            <g key={`string-${stringRow.label}-${stringRow.stringIndex}`}>
+              {/* String-label placement follows a shortened string's local nut when it is visible. */}
+              <text
+                fill={visualSettings.stringLabelColor}
+                fontFamily={visualSettings.fretboardFontFamily}
+                fontSize={visualSettings.stringLabelFontSize}
+                textAnchor="end"
+                x={xForStringLabel(stringRow)}
+                y={yForString(rowIndex) + 4}
+              >
+                {stringRow.label}
+              </text>
+              <line
+                stroke={visualSettings.stringLineColor}
+                strokeWidth={stringLineWidth}
+                x1={stringStartX}
+                x2={stringEndX}
+                y1={yForString(rowIndex)}
+                y2={yForString(rowIndex)}
+              />
             </g>
           );
         })}

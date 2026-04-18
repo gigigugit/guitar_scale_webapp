@@ -14,7 +14,15 @@ export const INSTRUMENTS = {
     "Open G (DGDGBD)": ["D", "G", "D", "G", "B", "D"],
   },
   Banjo: {
-    "Standard (GDGBD)": ["G", "D", "G", "B", "D"],
+    "Standard (GDGBD)": {
+      strings: [
+        { displayLabel: "g", note: "G", nutFret: 5 },
+        "D",
+        "G",
+        "B",
+        "D",
+      ],
+    },
   },
 };
 
@@ -40,6 +48,31 @@ export function toBoundedInteger(value, min, max, fallback = min) {
     return fallback;
   }
   return clamp(parsed, min, max);
+}
+
+function normalizeTuningString(stringDefinition) {
+  if (typeof stringDefinition === "string") {
+    return {
+      displayLabel: stringDefinition,
+      note: stringDefinition,
+      nutFret: 0,
+    };
+  }
+
+  return {
+    displayLabel: stringDefinition.displayLabel ?? stringDefinition.note,
+    note: stringDefinition.note,
+    nutFret: Math.max(Number(stringDefinition.nutFret ?? 0), 0),
+  };
+}
+
+function normalizeTuningDefinition(tuningDefinition) {
+  const tuningStrings = Array.isArray(tuningDefinition) ? tuningDefinition : tuningDefinition?.strings ?? [];
+  return tuningStrings.map(normalizeTuningString);
+}
+
+export function getTuningStrings(instrument, tuningName) {
+  return normalizeTuningDefinition(INSTRUMENTS[instrument][tuningName]);
 }
 
 export function buildScaleNotes(key, scaleName) {
@@ -81,6 +114,13 @@ function displayValue(displayMode, fret, note, degreeMap) {
     return String(degreeMap.get(note) ?? "1");
   }
   return String(fret);
+}
+
+function displayFretValue(displayMode, fret, stringNutFret, note, degreeMap) {
+  const visibleFret = displayMode === "Fret Number"
+    ? (stringNutFret > 0 && fret > stringNutFret ? fret : Math.max(fret - stringNutFret, 0))
+    : fret;
+  return displayValue(displayMode, visibleFret, note, degreeMap);
 }
 
 function formatCell(displayMode, fret, note, degreeMap) {
@@ -156,28 +196,35 @@ export function buildFretboardModel({
   const activeNotes = selectedScaleNotes(scaleNotes, noteSelections);
   const degreeMap = noteDegreeMap(scaleNotes);
 
-  const tuning = INSTRUMENTS[instrument][tuningName];
+  const tuning = getTuningStrings(instrument, tuningName);
   const tuningDisplay = [...tuning].reverse();
   const stringIndices = Array.from({ length: tuning.length }, (_, index) => index + 1);
   const displayIndices = stringIndices.filter((index) => index >= highString && index <= lowString);
   const frets = Array.from({ length: endFret - startFret + 1 }, (_, index) => startFret + index);
+  const displayedStrings = displayIndices.map((index) => tuningDisplay[index - 1]);
 
   const header = `${selectedKey} ${scaleName} | ${instrument} | ${tuningName} | Frets ${startFret}-${endFret}`;
   const strings = displayIndices.map((index) => {
-    const stringNote = tuningDisplay[index - 1];
-    const openIndex = NOTES_SHARP.indexOf(stringNote);
-    const notes = frets.map((fret) => {
-      const note = NOTES_SHARP[(openIndex + fret) % 12];
-      return {
-        fret,
-        note,
-        active: activeNotes.has(note),
-        value: displayValue(displayMode, fret, note, degreeMap),
-      };
-    });
+    const stringDefinition = tuningDisplay[index - 1];
+    const openIndex = NOTES_SHARP.indexOf(stringDefinition.note);
+    const notes = frets
+      .filter((fret) => fret >= stringDefinition.nutFret)
+      .map((fret) => {
+        const relativeFret = fret - stringDefinition.nutFret;
+        const note = NOTES_SHARP[(openIndex + relativeFret) % 12];
+
+        return {
+          fret,
+          note,
+          active: activeNotes.has(note),
+          value: displayFretValue(displayMode, fret, stringDefinition.nutFret, note, degreeMap),
+        };
+      });
 
     return {
-      label: stringNote,
+      label: stringDefinition.displayLabel,
+      note: stringDefinition.note,
+      nutFret: stringDefinition.nutFret,
       stringIndex: index,
       notes,
     };
@@ -196,7 +243,7 @@ export function buildFretboardModel({
     lowString,
     scaleName,
     selectedKey,
-    showOpenStrings: startFret === 0,
+    showOpenStrings: startFret === 0 && displayedStrings.some((stringDefinition) => stringDefinition.nutFret === 0),
     strings,
     tuningName,
   };
@@ -209,8 +256,16 @@ export function renderTablature(model) {
 
   model.strings.forEach((stringRow) => {
     const line = [`${stringRow.label.padStart(2, " ")} |`];
+    const notesByFret = new Map(stringRow.notes.map((note) => [note.fret, note]));
 
-    stringRow.notes.forEach((note) => {
+    model.frets.forEach((fret) => {
+      const note = notesByFret.get(fret);
+
+      if (!note) {
+        line.push("   ");
+        return;
+      }
+
       line.push(note.active ? note.value.padStart(3, " ") : " --");
     });
 

@@ -179,6 +179,7 @@ export default function ControlsPanel({
   onEndFretChange,
   onCopy,
   onSave,
+  onExportSvg,
 }) {
   return (
     <section className="grid gap-2.5 sm:gap-3">
@@ -286,9 +287,12 @@ export default function ControlsPanel({
 
           <div className={cardClassName} style={highlightCardStyle}>
             <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Action</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="mt-3 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <button className={buttonClassName} onClick={onCopy} style={buttonStyle} type="button">
                 Copy Tab
+              </button>
+              <button className={buttonClassName} onClick={onExportSvg} style={buttonStyle} type="button">
+                Export SVG
               </button>
               <button className={primaryButtonClassName} onClick={onSave} style={primaryButtonStyle} type="button">
                 Save Tab
