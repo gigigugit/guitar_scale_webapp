@@ -153,7 +153,46 @@ function BooleanSettingControl({ field, onSettingChange, settings }) {
   );
 }
 
-export default function VisualTweaksPanel({ onReset, onSave, onSettingChange, settings }) {
+function InstrumentStringSpacingControl({ instrument, max, min, onChange, value }) {
+  const percentValue = Math.round(Number(value) * 100);
+
+  return (
+    <section className={sectionCardClassName} style={strongSurfaceStyle}>
+      <div className="mb-2.5">
+        <h3 className="m-0 text-[0.84rem] font-semibold uppercase tracking-[0.16em]">String Spacing</h3>
+      </div>
+
+      <div className={fieldCardClassName} style={{ ...surfaceStyle, background: "rgba(255,255,255,0.18)" }}>
+        <div className="min-w-0">
+          <span className="block text-[0.76rem] font-semibold leading-tight">{instrument} string distance</span>
+          <span className="mt-0.5 block text-[0.64rem] leading-snug" style={mutedTextStyle}>
+            Fine-tunes the vertical gap between strings for the current instrument without shifting the fretboard panel off position.
+          </span>
+        </div>
+
+        <div className="grid min-w-[10rem] gap-1.5">
+          <div className="flex items-center justify-between gap-2 text-[0.64rem] font-semibold uppercase tracking-[0.14em]" style={mutedTextStyle}>
+            <span>Tight</span>
+            <span className={valuePillClassName} style={strongSurfaceStyle}>{percentValue}%</span>
+            <span>Wide</span>
+          </div>
+          <input
+            aria-label={`${instrument} string spacing`}
+            className="w-full cursor-pointer accent-[var(--theme-accent)]"
+            max={max}
+            min={min}
+            onChange={(event) => onChange(event.target.value)}
+            step={0.01}
+            type="range"
+            value={value}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function VisualTweaksPanel({ instrument, instrumentStringSpacing, onInstrumentStringSpacingChange, onReset, onSave, onSettingChange, settings, stringSpacingMax, stringSpacingMin }) {
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap justify-end gap-1.5">
@@ -172,6 +211,16 @@ export default function VisualTweaksPanel({ onReset, onSave, onSettingChange, se
             Drag the highlighted edges on the fretboard panel to tune panel padding, board bounds, and the open-string lane without leaving the viewer.
           </span>
         </div>
+      ) : null}
+
+      {typeof onInstrumentStringSpacingChange === "function" ? (
+        <InstrumentStringSpacingControl
+          instrument={instrument}
+          max={stringSpacingMax}
+          min={stringSpacingMin}
+          onChange={onInstrumentStringSpacingChange}
+          value={instrumentStringSpacing}
+        />
       ) : null}
 
       <div className="grid gap-3">

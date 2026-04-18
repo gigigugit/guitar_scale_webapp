@@ -95,51 +95,6 @@ function loadInstrumentStringSpacing() {
   }
 }
 
-function InstrumentStringSpacingRail({ instrument, isSmartphone = false, onChange, value }) {
-  const percentValue = Math.round(value * 100);
-
-  return (
-    <div
-      className={[
-        "flex select-none flex-col items-center gap-2 rounded-[22px] border px-2 py-3 shadow-[0_16px_34px_rgba(32,20,15,0.16)] backdrop-blur-sm",
-        isSmartphone ? "w-14" : "w-16",
-      ].join(" ")}
-      style={{
-        background: "color-mix(in srgb, var(--theme-surface-strong) 78%, transparent)",
-        borderColor: "var(--theme-border)",
-        color: "var(--theme-app-text)",
-      }}
-    >
-      <span className="text-center text-[0.56rem] font-black uppercase tracking-[0.18em]" style={{ color: "var(--theme-muted)" }}>
-        String Gap
-      </span>
-      <span className="text-center text-[0.62rem] font-semibold leading-tight" style={{ color: "var(--theme-app-text)" }}>
-        {instrument}
-      </span>
-
-      <div className={["flex items-center justify-center", isSmartphone ? "h-32" : "h-40"].join(" ")}>
-        <input
-          aria-label={`${instrument} string spacing`}
-          className={["cursor-pointer accent-[var(--theme-accent)]", isSmartphone ? "w-28" : "w-36"].join(" ")}
-          max={MAX_INSTRUMENT_STRING_SPACING_SCALE}
-          min={MIN_INSTRUMENT_STRING_SPACING_SCALE}
-          onChange={(event) => onChange(event.target.value)}
-          step={0.01}
-          style={{ transform: "rotate(-90deg)" }}
-          type="range"
-          value={value}
-        />
-      </div>
-
-      <div className="grid justify-items-center gap-1 text-[0.56rem] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--theme-muted)" }}>
-        <span>Wide</span>
-        <span className="rounded-full border px-2 py-1 text-[0.64rem]" style={{ borderColor: "var(--theme-border)", color: "var(--theme-accent)" }}>{percentValue}%</span>
-        <span>Tight</span>
-      </div>
-    </div>
-  );
-}
-
 function detectIPadDevice() {
   if (typeof navigator === "undefined") {
     return false;
@@ -804,7 +759,19 @@ export default function FretboardApp() {
     {
       id: "visual-tweaks",
       label: "Fine Tune",
-      content: <VisualTweaksPanel onReset={handleResetVisualSettings} onSave={handleSaveVisualSettings} onSettingChange={handleVisualSettingChange} settings={visualSettings} />,
+      content: (
+        <VisualTweaksPanel
+          instrument={instrument}
+          instrumentStringSpacing={currentInstrumentStringSpacing}
+          onInstrumentStringSpacingChange={handleInstrumentStringSpacingChange}
+          onReset={handleResetVisualSettings}
+          onSave={handleSaveVisualSettings}
+          onSettingChange={handleVisualSettingChange}
+          settings={visualSettings}
+          stringSpacingMax={MAX_INSTRUMENT_STRING_SPACING_SCALE}
+          stringSpacingMin={MIN_INSTRUMENT_STRING_SPACING_SCALE}
+        />
+      ),
     },
     {
       id: "switchyard",
@@ -850,31 +817,14 @@ export default function FretboardApp() {
       >
         {/* Spacing between the fretboard panel and the caption below it. */}
         <div className={stackClassName}>
-          <div className="relative">
-            <OutputPanel
-              baseVisualSettings={visualSettings}
-              isSmartphone={isSmartphone}
-              model={renderedView}
-              onVisualSettingChange={handleVisualSettingChange}
-              svgRef={fretboardSvgRef}
-              visualSettings={effectiveVisualSettings}
-            />
-            {visualSettings.showStringSpacingControl ? (
-              <div
-                className={[
-                  "absolute top-1/2 z-30 -translate-y-1/2",
-                  isSmartphone ? "right-2" : "-right-[4.8rem]",
-                ].join(" ")}
-              >
-                <InstrumentStringSpacingRail
-                  instrument={instrument}
-                  isSmartphone={isSmartphone}
-                  onChange={handleInstrumentStringSpacingChange}
-                  value={currentInstrumentStringSpacing}
-                />
-              </div>
-            ) : null}
-          </div>
+          <OutputPanel
+            baseVisualSettings={visualSettings}
+            isSmartphone={isSmartphone}
+            model={renderedView}
+            onVisualSettingChange={handleVisualSettingChange}
+            svgRef={fretboardSvgRef}
+            visualSettings={effectiveVisualSettings}
+          />
           <FretboardCaptionSelectors
             endFret={endFret}
             instrument={instrument}

@@ -365,7 +365,6 @@ export const FRETBOARD_VISUAL_SETTING_FIELDS = [
   {
     section: "Board Layout",
     fields: [
-      { key: "showStringSpacingControl", label: "Show string distance control", description: "Shows the side rail used to change per-instrument string spacing.", type: "boolean" },
       { key: "fretSpacingMode", label: "Fret spacing mode", description: "Choose between the current even fret grid and a mockup-style tapered fret layout.", type: "select", options: FRET_SPACING_MODE_OPTIONS },
       { key: "leftPad", label: "Left board padding", description: "Empty SVG space before the string lines begin.", min: 20, max: 80, step: 1 },
       { key: "topPad", label: "Top board padding", description: "Empty SVG space above the first string.", min: 0, max: 50, step: 1 },
@@ -432,7 +431,6 @@ export const DEFAULT_FRETBOARD_VISUAL_SETTINGS = {
   panelPaddingTop: 8,
   panelPaddingBottom: 8,
   liftPanelWithDrawer: false,
-  showStringSpacingControl: false,
   fretSpacingMode: "uniform",
   leftPad: 44,
   topPad: 28,
