@@ -175,6 +175,8 @@ Use the exact chromatic order:
 
 `["C", "C#", "D", "E♭", "E", "F", "F#", "G", "G#", "A", "B♭", "B"]`
 
+Keep the current display strings exactly as written above, including the Unicode flat symbol (`♭`). If a native data layer also stores ASCII-safe forms for search or serialization, treat that as an internal compatibility layer only and keep the UI labels unchanged.
+
 ### Scales
 
 ```text
@@ -267,7 +269,7 @@ For each visible string:
 
 Show the open-string lane only when:
 
-- `startFret === 0`
+- `startFret` equals `0`
 - at least one visible string has `nutFret === 0`
 
 ### Tablature generation
@@ -444,7 +446,7 @@ Base these on current defaults and keep them stable across devices:
 | stringLabelFontSize | 12 | 12 | 11-13 |
 | fretNumberFontSize | 11 | 11 | 10-12 |
 | openFretLabelSize | 11 | 11 | 10-12 |
-| instrument string spacing scale | 1.00 | 1.00 | 0.90-1.15 |
+| instrumentStringSpacingScale | 1.00 | 1.00 | 0.90-1.15 |
 
 ### Optimization guidance
 
