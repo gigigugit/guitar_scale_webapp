@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import BottomControlsSheet from "../components/BottomControlsSheet";
+import ChordTitleControls from "../components/ChordTitleControls";
 import ControlLayoutMockup from "../components/ControlLayoutMockup";
 import ControlsPanel from "../components/ControlsPanel";
 import FretboardCaptionSelectors from "../components/FretboardCaptionSelectors";
@@ -8,8 +9,12 @@ import OutputPanel from "../components/OutputPanel";
 import ThemePickerPanel from "../components/ThemePickerPanel";
 import VisualTweaksPanel from "../components/VisualTweaksPanel";
 import {
+  getAvailableChordStructures,
+  buildScaleChordOptions,
   buildDownloadName,
+  DISPLAY_TARGETS,
   DISPLAY_MODES,
+  getInKeyChordSelection,
   getTuningStrings,
   INSTRUMENTS,
   NOTES_SHARP,
@@ -17,6 +22,7 @@ import {
   ROMAN_LABELS,
   SCALE_INTERVALS,
   toBoundedInteger,
+  warmChordSelectionCache,
 } from "../lib/fretboard";
 import {
   applyThemePreset,
@@ -47,6 +53,17 @@ const LANDSCAPE_SMARTPHONE_MAX_WIDTH = 950;
 const LANDSCAPE_SMARTPHONE_MAX_HEIGHT = 500;
 const MOBILE_USER_AGENT_PATTERN = /Android.+Mobile|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i;
 const PWA_STATUS_EVENT = "dragon-scales:pwa-status";
+const CLOSED_CONTROLS_CLEARANCE = 72;
+const OPEN_DRAWER_HEIGHT_ESTIMATE = {
+  desktop: 360,
+  smartphone: 300,
+};
+const MonacoOutputPanel = lazy(() => import("../components/MonacoOutputPanel"));
+const HOW_TO_USE_COPY = [
+  "Scale/Chord viewer for the guitar, banjo, and other stringed instruments to come.",
+  "To use, select a scale or chord from the dropdown menu, and the fretboard will display the notes in that scale or chord. You can also change to alternate tunings via the dropdown menu, and the fretboard will update accordingly.",
+  'Chords are displayed in "Chord Mode", which keeps the scale visible, highlights the chord tones, and lets you scroll through compact triad or seventh voicings that fit inside a four-fret span. The position list shows inversion labels with the fret range instead of named shape families.',
+];
 
 const DEFAULT_INSTRUMENT_STRING_SPACING = Object.fromEntries(instrumentOptions.map((option) => [option, 1]));
 
@@ -93,6 +110,74 @@ function loadInstrumentStringSpacing() {
   } catch {
     return DEFAULT_INSTRUMENT_STRING_SPACING;
   }
+}
+
+function serializeLayoutEditorState(visualSettings, instrumentStringSpacing) {
+  return JSON.stringify(
+    {
+      visualSettings,
+      instrumentStringSpacing,
+    },
+    null,
+    2,
+  );
+}
+
+function parseLayoutEditorState(rawValue, currentVisualSettings, currentInstrumentStringSpacing) {
+  let parsed;
+
+  try {
+    parsed = JSON.parse(rawValue);
+  } catch {
+    throw new Error("Layout state must be valid JSON.");
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Layout state must be a JSON object.");
+  }
+
+  const visualSettingsPatch = parsed.visualSettings ?? {};
+  const instrumentStringSpacingPatch = parsed.instrumentStringSpacing ?? {};
+
+  if (typeof visualSettingsPatch !== "object" || Array.isArray(visualSettingsPatch)) {
+    throw new Error("visualSettings must be a JSON object when provided.");
+  }
+
+  if (typeof instrumentStringSpacingPatch !== "object" || Array.isArray(instrumentStringSpacingPatch)) {
+    throw new Error("instrumentStringSpacing must be a JSON object when provided.");
+  }
+
+  const nextVisualSettings = normalizeFretboardVisualSettings({
+    ...currentVisualSettings,
+    ...visualSettingsPatch,
+  });
+
+  return {
+    instrumentStringSpacing: normalizeInstrumentStringSpacing({
+      ...currentInstrumentStringSpacing,
+      ...instrumentStringSpacingPatch,
+    }),
+    visualSettings: {
+      ...nextVisualSettings,
+      themePresetId: detectMatchingThemePreset(nextVisualSettings),
+    },
+  };
+}
+
+function measureRelativeRect(rootElement, targetElement) {
+  if (!rootElement || !targetElement) {
+    return null;
+  }
+
+  const rootRect = rootElement.getBoundingClientRect();
+  const targetRect = targetElement.getBoundingClientRect();
+
+  return {
+    height: targetRect.height,
+    left: targetRect.left - rootRect.left,
+    top: targetRect.top - rootRect.top,
+    width: targetRect.width,
+  };
 }
 
 function detectIPadDevice() {
@@ -186,6 +271,17 @@ function fallbackCopy(text) {
   helper.remove();
 }
 
+function copyTextToClipboard(text) {
+  return Promise.resolve().then(async () => {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    fallbackCopy(text);
+  });
+}
+
 function getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone, isSmartphone }) {
   if (isLandscapeSmartphone) {
     return {
@@ -221,16 +317,30 @@ function getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone,
 function RotateDeviceGate() {
   return (
     <section className="flex min-h-[100dvh] items-center justify-center px-4 py-6">
-      <div className="w-full max-w-[420px] rounded-[32px] border border-[#d8c8bc] bg-[linear-gradient(180deg,rgba(255,249,242,0.98),rgba(244,234,223,0.98))] px-6 py-7 text-center shadow-[0_24px_60px_rgba(91,56,36,0.14)]">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#5b3824] text-[#f6debf] shadow-[0_10px_28px_rgba(91,56,36,0.2)]">
+      <div
+        className="w-full max-w-[420px] rounded-[32px] border px-6 py-7 text-center"
+        style={{
+          background: "var(--theme-surface-strong)",
+          borderColor: "var(--theme-border)",
+          boxShadow: "0 24px 60px var(--theme-fretboard-shadow)",
+        }}
+      >
+        <div
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px]"
+          style={{
+            background: "var(--theme-accent)",
+            color: "var(--theme-accent-text)",
+            boxShadow: "0 10px 28px var(--theme-fretboard-shadow)",
+          }}
+        >
           <svg aria-hidden="true" className="h-8 w-8" fill="none" viewBox="0 0 24 24">
             <rect height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" width="8.5" x="7.75" y="5" />
             <path d="M6.25 11.5A5.75 5.75 0 0 1 12 5.75" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
             <path d="m10.5 4.8 1.9.95-1.03 1.87" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
           </svg>
         </div>
-        <h1 className="mb-2 mt-5 text-[1.25rem] font-semibold tracking-[-0.04em] text-[#3d291e]">Rotate Your Phone</h1>
-        <p className="m-0 text-[0.96rem] leading-6 text-[#6b5649]">This view is locked to landscape on smartphones. Turn your device sideways to open the fretboard.</p>
+        <h1 className="mb-2 mt-5 text-[1.25rem] font-semibold tracking-[-0.04em]" style={{ color: "var(--theme-title-color)" }}>Rotate Your Phone</h1>
+        <p className="m-0 text-[0.96rem] leading-6" style={{ color: "var(--theme-muted)" }}>This view is locked to landscape on smartphones. Turn your device sideways to open the fretboard.</p>
       </div>
     </section>
   );
@@ -257,10 +367,11 @@ function TopNoticeCard({ actions = [], description, title, tone = "neutral" }) {
 
   return (
     <div
-      className="pointer-events-auto rounded-[22px] border px-4 py-3 shadow-[0_16px_36px_rgba(46,29,19,0.1)] backdrop-blur-md"
+      className="pointer-events-auto rounded-[22px] border px-4 py-3 backdrop-blur-md"
       style={{
-        background: "rgba(255,255,255,0.82)",
+        background: "var(--theme-surface-strong)",
         borderColor: "var(--theme-border)",
+        boxShadow: "0 14px 28px var(--theme-fretboard-shadow)",
         color: "var(--theme-app-text)",
         fontFamily: "var(--theme-ui-font)",
       }}
@@ -297,10 +408,11 @@ function TopNoticeCard({ actions = [], description, title, tone = "neutral" }) {
 function OfflineModePill() {
   return (
     <div
-      className="pointer-events-auto inline-flex self-center rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.16em] shadow-[0_8px_18px_rgba(46,29,19,0.08)] backdrop-blur-md"
+      className="pointer-events-auto inline-flex self-center rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.16em] backdrop-blur-md"
       style={{
-        background: "rgba(255,255,255,0.82)",
+        background: "var(--theme-surface-strong)",
         borderColor: "var(--theme-border)",
+        boxShadow: "0 10px 18px var(--theme-fretboard-shadow)",
         color: "var(--theme-muted)",
         fontFamily: "var(--theme-ui-font)",
       }}
@@ -347,11 +459,58 @@ function PwaStatusBanner({ status, onDismiss, onRefresh }) {
   );
 }
 
+function HelpToast({ onDismiss }) {
+  return (
+    <div
+      aria-live="polite"
+      className="pointer-events-auto w-[min(24rem,calc(100vw-2rem))] rounded-[22px] border px-4 py-3 backdrop-blur-md"
+      role="status"
+      style={{
+        background: "var(--theme-surface-strong)",
+        borderColor: "var(--theme-border)",
+        boxShadow: "0 16px 32px var(--theme-fretboard-shadow)",
+        color: "var(--theme-app-text)",
+        fontFamily: "var(--theme-ui-font)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="mb-1 inline-flex rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em]" style={{ background: "var(--theme-surface)", borderColor: "var(--theme-border)", color: "var(--theme-muted)" }}>
+            How To Use
+          </div>
+          <div className="text-[0.92rem] font-semibold tracking-[-0.02em]">Quick guide</div>
+        </div>
+        <button
+          aria-label="Dismiss help"
+          className="rounded-full px-2 py-1 text-[0.85rem] font-semibold leading-none transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/12"
+          onClick={onDismiss}
+          style={{ color: "var(--theme-muted)" }}
+          type="button"
+        >
+          Close
+        </button>
+      </div>
+
+      <div className="mt-2 grid gap-2 text-[0.8rem] leading-5" style={{ color: "var(--theme-muted)" }}>
+        {HOW_TO_USE_COPY.map((paragraph) => (
+          <p key={paragraph} className="m-0">
+            {paragraph}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function FretboardApp() {
+  const [displayTarget, setDisplayTarget] = useState(DISPLAY_TARGETS[0]);
   const [selectedKey, setSelectedKey] = useState(NOTES_SHARP[0]);
   const [scaleName, setScaleName] = useState(scaleOptions[0]);
   const [instrument, setInstrument] = useState(defaultInstrument);
   const [tuningName, setTuningName] = useState(defaultTuning);
+  const [selectedChordId, setSelectedChordId] = useState("degree-0");
+  const [chordVariantId, setChordVariantId] = useState("voicing-0");
+  const [chordStructureId, setChordStructureId] = useState("triad");
   const [displayMode, setDisplayMode] = useState(DISPLAY_MODES[0]);
   const [startFret, setStartFret] = useState(0);
   const [endFret, setEndFret] = useState(FIXED_MAX_FRET);
@@ -374,28 +533,168 @@ export default function FretboardApp() {
   const reloadOnControllerChangeRef = useRef(false);
   const fretboardSvgRef = useRef(null);
   const [instrumentStringSpacing, setInstrumentStringSpacing] = useState(loadInstrumentStringSpacing);
+  const [layoutEditorValue, setLayoutEditorValue] = useState(() => serializeLayoutEditorState(loadFretboardVisualSettings(), loadInstrumentStringSpacing()));
+  const [layoutEditorStatus, setLayoutEditorStatus] = useState(null);
+  const [layoutEditorError, setLayoutEditorError] = useState(null);
+  const [isLayoutEditorVisible, setIsLayoutEditorVisible] = useState(false);
+  const [isEditFocusMode, setIsEditFocusMode] = useState(false);
+  const [isLayoutOverlayVisible, setIsLayoutOverlayVisible] = useState(false);
+  const [isHelpToastVisible, setIsHelpToastVisible] = useState(false);
+  const [layoutOverlayRects, setLayoutOverlayRects] = useState({ caption: null, panel: null, titleControls: null });
+  const layoutRootRef = useRef(null);
+  const titleControlsRef = useRef(null);
+  const panelRegionRef = useRef(null);
+  const captionSelectorsRef = useRef(null);
 
-  const tuningOptions = Object.keys(INSTRUMENTS[instrument]);
-  const currentTuning = getTuningStrings(instrument, tuningName);
+  const tuningOptions = useMemo(() => Object.keys(INSTRUMENTS[instrument]), [instrument]);
+  const currentTuning = useMemo(() => getTuningStrings(instrument, tuningName), [instrument, tuningName]);
   const stringCount = currentTuning.length;
   const maxFret = FIXED_MAX_FRET;
+  const chordStructureOptions = useMemo(() => getAvailableChordStructures(scaleName), [scaleName]);
+  const resolvedChordStructureId = useMemo(() => (
+    chordStructureOptions.some((option) => option.id === chordStructureId)
+      ? chordStructureId
+      : chordStructureOptions[0]?.id ?? "triad"
+  ), [chordStructureId, chordStructureOptions]);
+  const chordOptions = useMemo(
+    () => buildScaleChordOptions(selectedKey, scaleName, resolvedChordStructureId),
+    [resolvedChordStructureId, scaleName, selectedKey],
+  );
+  const chordSelection = useMemo(() => getInKeyChordSelection({
+    selectedKey,
+    scaleName,
+    instrument,
+    tuningName,
+    chordId: selectedChordId,
+    chordOptions,
+    chordStructureOptions,
+    resolveVoicings: displayTarget === "Chord",
+    structureId: resolvedChordStructureId,
+    variantId: chordVariantId,
+    maxFret,
+  }), [
+    chordOptions,
+    chordStructureOptions,
+    chordVariantId,
+    displayTarget,
+    instrument,
+    maxFret,
+    resolvedChordStructureId,
+    scaleName,
+    selectedChordId,
+    selectedKey,
+    tuningName,
+  ]);
 
-  const renderedView = renderFretboard({
+  const renderedView = useMemo(() => renderFretboard({
     selectedKey,
     scaleName,
     instrument,
     tuningName,
     displayMode,
+    displayTarget,
     startFretValue: startFret,
     endFretValue: endFret,
     highStringValue: 1,
     lowStringValue: stringCount,
     noteSelections,
-  });
+    chordSelection,
+  }), [
+    chordSelection,
+    displayMode,
+    displayTarget,
+    endFret,
+    instrument,
+    noteSelections,
+    scaleName,
+    selectedKey,
+    startFret,
+    stringCount,
+    tuningName,
+  ]);
 
   useEffect(() => {
+    if (displayTarget !== "Scale") {
+      return;
+    }
+
     setNoteSelections((previous) => previous.map((value, index) => (index < renderedView.scaleLength ? value : false)));
-  }, [renderedView.scaleLength]);
+  }, [displayTarget, renderedView.scaleLength]);
+
+  useEffect(() => {
+    const warmCurrentScale = () => {
+      warmChordSelectionCache({
+        selectedKey,
+        scaleName,
+        instrument,
+        tuningName,
+        maxFret,
+      });
+    };
+
+    if (typeof window === "undefined") {
+      warmCurrentScale();
+      return undefined;
+    }
+
+    if (typeof window.requestIdleCallback === "function") {
+      const idleHandle = window.requestIdleCallback(() => {
+        warmCurrentScale();
+      }, { timeout: 250 });
+
+      return () => {
+        if (typeof window.cancelIdleCallback === "function") {
+          window.cancelIdleCallback(idleHandle);
+        }
+      };
+    }
+
+    const timeoutHandle = window.setTimeout(() => {
+      warmCurrentScale();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutHandle);
+    };
+  }, [instrument, maxFret, scaleName, selectedKey, tuningName]);
+
+  useEffect(() => {
+    if (resolvedChordStructureId !== chordStructureId) {
+      setChordStructureId(resolvedChordStructureId);
+    }
+  }, [chordStructureId, resolvedChordStructureId]);
+
+  useEffect(() => {
+    if (displayTarget !== "Chord") {
+      return;
+    }
+
+    if (chordSelection.chordId !== selectedChordId) {
+      setSelectedChordId(chordSelection.chordId);
+    }
+
+    if (chordSelection.variantId !== chordVariantId) {
+      setChordVariantId(chordSelection.variantId);
+    }
+  }, [chordSelection.chordId, chordSelection.variantId, chordVariantId, displayTarget, selectedChordId]);
+
+  useEffect(() => {
+    if (!isHelpToastVisible || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsHelpToastVisible(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isHelpToastVisible]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -439,6 +738,44 @@ export default function FretboardApp() {
 
     window.localStorage.setItem(INSTRUMENT_STRING_SPACING_STORAGE_KEY, JSON.stringify(instrumentStringSpacing));
   }, [instrumentStringSpacing]);
+
+  useEffect(() => {
+    if (!isLayoutOverlayVisible || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const rootElement = layoutRootRef.current;
+    if (!rootElement) {
+      return undefined;
+    }
+
+    const syncOverlayRects = () => {
+      setLayoutOverlayRects({
+        caption: measureRelativeRect(rootElement, captionSelectorsRef.current),
+        panel: measureRelativeRect(rootElement, panelRegionRef.current),
+        titleControls: measureRelativeRect(rootElement, titleControlsRef.current),
+      });
+    };
+
+    syncOverlayRects();
+
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => {
+        syncOverlayRects();
+      });
+
+    [rootElement, titleControlsRef.current, panelRegionRef.current, captionSelectorsRef.current]
+      .filter(Boolean)
+      .forEach((element) => observer?.observe(element));
+
+    window.addEventListener("resize", syncOverlayRects);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", syncOverlayRects);
+    };
+  }, [controlsOpen, drawerHeight, isEditFocusMode, isLayoutOverlayVisible, isSmartphone]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -531,27 +868,69 @@ export default function FretboardApp() {
   function handleCopy() {
     const text = renderedView.output;
 
-    Promise.resolve()
-      .then(async () => {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text);
-          return;
-        }
-        fallbackCopy(text);
-      })
+    copyTextToClipboard(text)
+      .then(() => { })
+      .catch(() => {
+        return;
+      });
+  }
+
+  function handleCopyVisualTweaksState() {
+    copyTextToClipboard(serializeLayoutEditorState(visualSettings, instrumentStringSpacing))
       .then(() => {})
       .catch(() => {
         return;
       });
   }
 
+  function handleLayoutEditorChange(nextValue) {
+    setLayoutEditorValue(nextValue);
+
+    if (layoutEditorError) {
+      setLayoutEditorError(null);
+    }
+
+    if (layoutEditorStatus) {
+      setLayoutEditorStatus(null);
+    }
+  }
+
+  function handleLoadCurrentLayoutState() {
+    setLayoutEditorValue(serializeLayoutEditorState(visualSettings, instrumentStringSpacing));
+    setLayoutEditorError(null);
+    setLayoutEditorStatus("Loaded the current live layout state.");
+  }
+
+  function handleApplyLayoutState({ save = false } = {}) {
+    try {
+      const nextState = parseLayoutEditorState(layoutEditorValue, visualSettings, instrumentStringSpacing);
+      const nextSerializedState = serializeLayoutEditorState(nextState.visualSettings, nextState.instrumentStringSpacing);
+
+      setVisualSettings(nextState.visualSettings);
+      setInstrumentStringSpacing(nextState.instrumentStringSpacing);
+      setLayoutEditorValue(nextSerializedState);
+      setLayoutEditorError(null);
+      setLayoutEditorStatus(save ? "Applied layout changes and saved them." : "Applied layout changes to the live fretboard.");
+
+      if (save && typeof window !== "undefined") {
+        window.localStorage.setItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY, JSON.stringify(nextState.visualSettings));
+      }
+    } catch (error) {
+      setLayoutEditorStatus(null);
+      setLayoutEditorError(error instanceof Error ? error.message : "Unable to apply layout state.");
+    }
+  }
+
   function handleSave() {
+    const downloadName = displayTarget === "Chord" && chordSelection.available
+      ? buildDownloadName(chordSelection.root, `${chordSelection.slug}-${chordSelection.variantLabel}`)
+      : buildDownloadName(selectedKey, scaleName);
     const blob = new Blob([renderedView.output], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = buildDownloadName(selectedKey, scaleName);
+    link.download = downloadName;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -568,7 +947,12 @@ export default function FretboardApp() {
     const panelHeight = metrics.svgHeight + effectiveVisualSettings.panelPaddingTop + effectiveVisualSettings.panelPaddingBottom;
     const panelRadius = isSmartphone ? 30 : 38;
     const exportedInnerSvg = svgElement.cloneNode(true);
-    const title = `${selectedKey} ${scaleName} fretboard`;
+    const title = displayTarget === "Chord" && chordSelection.available
+      ? `${chordSelection.displayName} ${chordSelection.variantLabel} fretboard`
+      : `${selectedKey} ${scaleName} fretboard`;
+    const downloadName = displayTarget === "Chord" && chordSelection.available
+      ? buildDownloadName(chordSelection.root, `${chordSelection.slug}-${chordSelection.variantLabel}`)
+      : buildDownloadName(selectedKey, scaleName);
 
     exportedInnerSvg.removeAttribute("class");
     exportedInnerSvg.removeAttribute("data-fretboard-svg");
@@ -594,7 +978,7 @@ export default function FretboardApp() {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = buildDownloadName(selectedKey, scaleName).replace(/\.txt$/, ".svg");
+    link.download = downloadName.replace(/\.txt$/, ".svg");
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -679,27 +1063,22 @@ export default function FretboardApp() {
   }
 
   const shouldLiftPanelWithDrawer = visualSettings.liftPanelWithDrawer;
-  const viewerLift = controlsOpen && shouldLiftPanelWithDrawer ? Math.min(Math.max(drawerHeight * 0.34, 48), 150) : 0;
-  const notchOnLeft = safeAreaInsets.left > safeAreaInsets.right;
-  const notchOnRight = safeAreaInsets.right > safeAreaInsets.left;
-  const viewerHorizontalOffset = isLandscapeSmartphone
-    ? notchOnLeft
-      ? `${safeAreaInsets.right / 2}px`
-      : notchOnRight
-        ? `${(safeAreaInsets.left / 2) * -1}px`
-        : "0px"
-    : "0px";
+  const estimatedDrawerHeight = isSmartphone ? OPEN_DRAWER_HEIGHT_ESTIMATE.smartphone : OPEN_DRAWER_HEIGHT_ESTIMATE.desktop;
+  const effectiveDrawerHeight = controlsOpen ? Math.max(drawerHeight, estimatedDrawerHeight) : 0;
+  const viewerLift = controlsOpen && shouldLiftPanelWithDrawer ? Math.min(Math.max(effectiveDrawerHeight * 0.34, 48), 150) : 0;
+  const viewerHorizontalPadding = isLandscapeSmartphone ? `${Math.max(safeAreaInsets.left, safeAreaInsets.right)}px` : undefined;
   const isLandscapeViewport = viewportWidth > viewportHeight;
   const shouldShowLandscapeGate = isSmartphone && !isLandscapeViewport;
   const shouldShowInstallPrompt = !isStandaloneMode && !installHintDismissed && (Boolean(deferredInstallPrompt) || isIOSDevice);
-  const headerTitle = `${selectedKey} ${scaleName}`;
+  const headerTitle = displayTarget === "Chord" ? `${selectedKey} ${scaleName} Chords` : `${selectedKey} ${scaleName}`;
   const hideHeaderInCompactMode = isCompactSmartphone && !isLandscapeSmartphone;
-  const hideHeader = viewerLift > 0 || hideHeaderInCompactMode;
+  const hideHeader = viewerLift > 0 || hideHeaderInCompactMode || isEditFocusMode;
   const currentInstrumentStringSpacing = instrumentStringSpacing[instrument] ?? 1;
   const effectiveVisualSettingsBase = isSmartphone ? getResponsiveFretboardVisualSettings(visualSettings, viewportWidth, isLandscapeSmartphone) : visualSettings;
   const effectiveVisualSettings = { ...effectiveVisualSettingsBase, instrumentStringSpacingScale: currentInstrumentStringSpacing };
   const { rootClassName, viewerClassName, stackClassName } = getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone, isSmartphone });
   const controlSnapshot = {
+    displayTarget,
     displayMode,
     displayModes: DISPLAY_MODES,
     endFret,
@@ -715,12 +1094,14 @@ export default function FretboardApp() {
     startFret,
     tuningName,
   };
-  const drawerTabs = [
+  const drawerTabs = useMemo(() => [
     {
       id: "controls",
       label: "Controls",
-      content: (
+      renderContent: () => (
         <ControlsPanel
+          displayTarget={displayTarget}
+          displayTargets={DISPLAY_TARGETS}
           displayMode={displayMode}
           displayModes={DISPLAY_MODES}
           endFret={endFret}
@@ -732,6 +1113,7 @@ export default function FretboardApp() {
           noteSelections={noteSelections}
           onCopy={handleCopy}
           onDisplayModeChange={setDisplayMode}
+          onDisplayTargetChange={setDisplayTarget}
           onEndFretChange={handleEndFretChange}
           onExportSvg={handleExportSvg}
           onInstrumentChange={handleInstrumentChange}
@@ -754,19 +1136,29 @@ export default function FretboardApp() {
     {
       id: "themes",
       label: "Themes",
-      content: <ThemePickerPanel activeThemeId={visualSettings.themePresetId} onApplyTheme={handleApplyThemePreset} onReset={handleResetVisualSettings} onSave={handleSaveVisualSettings} />,
+      renderContent: () => <ThemePickerPanel activeThemeId={visualSettings.themePresetId} onApplyTheme={handleApplyThemePreset} onReset={handleResetVisualSettings} onSave={handleSaveVisualSettings} />,
     },
     {
       id: "visual-tweaks",
-      label: "Fine Tune",
-      content: (
+      label: "Visual Tweaks",
+      allowPartialCollapse: true,
+      partialCollapseTitle: "Visual Tweaks",
+      renderContent: () => (
         <VisualTweaksPanel
+          isDesktop={!isSmartphone}
+          isEditFocusMode={isEditFocusMode}
           instrument={instrument}
           instrumentStringSpacing={currentInstrumentStringSpacing}
+          isLayoutEditorVisible={isLayoutEditorVisible}
+          isLayoutOverlayVisible={isLayoutOverlayVisible}
+          onCopyState={handleCopyVisualTweaksState}
           onInstrumentStringSpacingChange={handleInstrumentStringSpacingChange}
           onReset={handleResetVisualSettings}
           onSave={handleSaveVisualSettings}
           onSettingChange={handleVisualSettingChange}
+          onToggleEditFocusMode={() => setIsEditFocusMode((current) => !current)}
+          onToggleLayoutEditor={() => setIsLayoutEditorVisible((current) => !current)}
+          onToggleLayoutOverlay={() => setIsLayoutOverlayVisible((current) => !current)}
           settings={visualSettings}
           stringSpacingMax={MAX_INSTRUMENT_STRING_SPACING_SCALE}
           stringSpacingMin={MIN_INSTRUMENT_STRING_SPACING_SCALE}
@@ -776,19 +1168,49 @@ export default function FretboardApp() {
     {
       id: "switchyard",
       label: "Switchyard",
-      content: <ControlLayoutMockup state={controlSnapshot} variant="switchyard" />,
+      renderContent: () => <ControlLayoutMockup state={controlSnapshot} variant="switchyard" />,
     },
     {
       id: "module-wall",
       label: "Module Wall",
-      content: <ControlLayoutMockup state={controlSnapshot} variant="module-wall" />,
+      renderContent: () => <ControlLayoutMockup state={controlSnapshot} variant="module-wall" />,
     },
     {
       id: "patch-bay",
       label: "Patch Bay",
-      content: <ControlLayoutMockup state={controlSnapshot} variant="patch-bay" />,
+      renderContent: () => <ControlLayoutMockup state={controlSnapshot} variant="patch-bay" />,
     },
-  ];
+  ], [
+    controlSnapshot,
+    currentInstrumentStringSpacing,
+    displayMode,
+    displayTarget,
+    endFret,
+    handleCopy,
+    handleCopyVisualTweaksState,
+    handleEndFretChange,
+    handleExportSvg,
+    handleInstrumentChange,
+    handleResetVisualSettings,
+    handleSave,
+    handleSaveVisualSettings,
+    handleStartFretChange,
+    handleVisualSettingChange,
+    instrument,
+    instrumentOptions,
+    isEditFocusMode,
+    isLayoutEditorVisible,
+    isLayoutOverlayVisible,
+    isSmartphone,
+    noteSelections,
+    renderedView.scaleLength,
+    scaleName,
+    selectedKey,
+    startFret,
+    tuningName,
+    tuningOptions,
+    visualSettings,
+  ]);
 
   if (shouldShowLandscapeGate) {
     return <RotateDeviceGate />;
@@ -798,8 +1220,73 @@ export default function FretboardApp() {
     // Top-level vertical spacing for the fretboard viewer stack.
     <div
       className={rootClassName}
-      style={{ paddingBottom: controlsOpen && shouldLiftPanelWithDrawer ? `${drawerHeight + 12}px` : undefined }}
+      ref={layoutRootRef}
+      style={{
+        paddingBottom: controlsOpen && shouldLiftPanelWithDrawer
+          ? `${effectiveDrawerHeight + 12}px`
+          : `${CLOSED_CONTROLS_CLEARANCE}px`,
+      }}
     >
+      {isLayoutOverlayVisible && !isSmartphone ? (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-30">
+            {layoutOverlayRects.titleControls ? (
+              <div
+                className="absolute rounded-[20px] border-2 border-dashed"
+                style={{
+                  borderColor: "rgba(38, 132, 255, 0.88)",
+                  height: `${layoutOverlayRects.titleControls.height}px`,
+                  left: `${layoutOverlayRects.titleControls.left}px`,
+                  top: `${layoutOverlayRects.titleControls.top}px`,
+                  width: `${layoutOverlayRects.titleControls.width}px`,
+                }}
+              >
+                <div className="absolute left-3 top-3 rounded-full px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em]" style={{ background: "rgba(38,132,255,0.92)", color: "white" }}>
+                  Title / context row
+                </div>
+              </div>
+            ) : null}
+            {layoutOverlayRects.panel ? (
+              <div
+                className="absolute rounded-[26px] border-2 border-dashed"
+                style={{
+                  borderColor: "rgba(0, 187, 125, 0.88)",
+                  height: `${layoutOverlayRects.panel.height}px`,
+                  left: `${layoutOverlayRects.panel.left}px`,
+                  top: `${layoutOverlayRects.panel.top}px`,
+                  width: `${layoutOverlayRects.panel.width}px`,
+                }}
+              >
+                <div className="absolute left-3 top-3 rounded-full px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em]" style={{ background: "rgba(0,187,125,0.94)", color: "white" }}>
+                  Fretboard panel
+                </div>
+              </div>
+            ) : null}
+            {layoutOverlayRects.caption ? (
+              <div
+                className="absolute rounded-[18px] border-2 border-dashed"
+                style={{
+                  borderColor: "rgba(255, 145, 0, 0.9)",
+                  height: `${layoutOverlayRects.caption.height}px`,
+                  left: `${layoutOverlayRects.caption.left}px`,
+                  top: `${layoutOverlayRects.caption.top}px`,
+                  width: `${layoutOverlayRects.caption.width}px`,
+                }}
+              >
+                <div className="absolute left-3 top-3 rounded-full px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em]" style={{ background: "rgba(255,145,0,0.94)", color: "white" }}>
+                  Caption / selector row
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="pointer-events-none fixed bottom-6 right-6 z-40 max-w-[22rem] rounded-[20px] border px-4 py-3 text-[0.78rem] leading-5" style={{ background: "var(--theme-surface-strong)", borderColor: "var(--theme-border)", boxShadow: "0 16px 32px var(--theme-fretboard-shadow)", color: "var(--theme-app-text)" }}>
+            <div className="mb-1 text-[0.72rem] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--theme-muted)" }}>
+              Live Layout Overlay
+            </div>
+            Blue marks the title/context row, green marks the fretboard panel, orange marks the selector row, and the bottom controls sheet remains pinned to the viewport bottom.
+          </div>
+        </>
+      ) : null}
       {shouldShowInstallPrompt || pwaStatus || isOffline ? (
         <div className="pointer-events-none fixed inset-x-0 top-0 z-40 flex justify-center px-3 pt-2.5">
           <div className="grid w-full max-w-[720px] gap-2">
@@ -809,41 +1296,113 @@ export default function FretboardApp() {
           </div>
         </div>
       ) : null}
-      <HeroHeader hidden={hideHeader} isSmartphone={isSmartphone} title={headerTitle} />
+      <div className="pointer-events-none fixed right-3 top-3 z-50 flex flex-col items-end gap-2 sm:right-4 sm:top-4">
+        <button
+          className="pointer-events-auto bg-transparent p-0 text-[0.78rem] font-semibold tracking-[0.01em] underline underline-offset-4 transition hover:opacity-70 focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/12"
+          onClick={() => setIsHelpToastVisible((current) => !current)}
+          style={{ color: "var(--theme-app-text)", fontFamily: "var(--theme-ui-font)" }}
+          type="button"
+        >
+          {isHelpToastVisible ? "Hide help" : "How to use"}
+        </button>
 
+        {isHelpToastVisible ? <HelpToast onDismiss={() => setIsHelpToastVisible(false)} /> : null}
+      </div>
+      <div className="absolute inset-x-0 top-0 z-20">
+        <HeroHeader hidden={hideHeader} isSmartphone={isSmartphone} title={headerTitle} />
+      </div>
       <div
         className={viewerClassName}
-        style={{ transform: `translate(${viewerHorizontalOffset}, -${viewerLift}px)` }}
+        style={{ paddingLeft: viewerHorizontalPadding, paddingRight: viewerHorizontalPadding, transform: `translateY(-${viewerLift}px)` }}
       >
-        {/* Spacing between the fretboard panel and the caption below it. */}
         <div className={stackClassName}>
-          <OutputPanel
-            baseVisualSettings={visualSettings}
-            isSmartphone={isSmartphone}
-            model={renderedView}
-            onVisualSettingChange={handleVisualSettingChange}
-            svgRef={fretboardSvgRef}
-            visualSettings={effectiveVisualSettings}
-          />
-          <FretboardCaptionSelectors
-            endFret={endFret}
-            instrument={instrument}
-            instrumentOptions={instrumentOptions}
-            keyOptions={NOTES_SHARP}
-            maxFret={maxFret}
-            onEndFretChange={handleEndFretChange}
-            onInstrumentChange={handleInstrumentChange}
-            onKeyChange={setSelectedKey}
-            onScaleChange={setScaleName}
-            onStartFretChange={handleStartFretChange}
-            onTuningChange={setTuningName}
-            scaleName={scaleName}
-            scaleOptions={scaleOptions}
-            selectedKey={selectedKey}
-            startFret={startFret}
-            tuningName={tuningName}
-            tuningOptions={tuningOptions}
-          />
+          {!isEditFocusMode ? (
+            <div ref={titleControlsRef}>
+              <HeroHeader hidden={hideHeader} isSmartphone={isSmartphone} showTitle={false} title={headerTitle}>
+                <ChordTitleControls
+                  chordId={selectedChordId}
+                  chordOptions={chordOptions}
+                  chordStructureId={resolvedChordStructureId}
+                  chordStructureOptions={chordStructureOptions}
+                  displayTarget={displayTarget}
+                  displayTargets={DISPLAY_TARGETS}
+                  notice={displayTarget === "Chord" ? chordSelection.notice : null}
+                  onChordChange={setSelectedChordId}
+                  onDisplayTargetChange={setDisplayTarget}
+                  onChordStructureChange={setChordStructureId}
+                  onVariantChange={setChordVariantId}
+                  selectedVariantId={chordSelection.variantId}
+                  variantOptions={chordSelection.variantOptions}
+                />
+              </HeroHeader>
+            </div>
+          ) : null}
+          <div className="flex w-full justify-center" ref={panelRegionRef}>
+            <OutputPanel
+              baseVisualSettings={visualSettings}
+              isEditFocusMode={isEditFocusMode}
+              isSmartphone={isSmartphone}
+              model={renderedView}
+              onVisualSettingChange={handleVisualSettingChange}
+              showLayoutOverlay={isLayoutOverlayVisible}
+              svgRef={fretboardSvgRef}
+              visualSettings={effectiveVisualSettings}
+            />
+          </div>
+          {!isEditFocusMode ? (
+            <div ref={captionSelectorsRef}>
+              <FretboardCaptionSelectors
+                displayMode={displayMode}
+                displayModes={DISPLAY_MODES}
+                endFret={endFret}
+                instrument={instrument}
+                instrumentOptions={instrumentOptions}
+                keyOptions={NOTES_SHARP}
+                maxFret={maxFret}
+                onDisplayModeChange={setDisplayMode}
+                onEndFretChange={handleEndFretChange}
+                onInstrumentChange={handleInstrumentChange}
+                onKeyChange={setSelectedKey}
+                onScaleChange={setScaleName}
+                onStartFretChange={handleStartFretChange}
+                onTuningChange={setTuningName}
+                scaleName={scaleName}
+                scaleOptions={scaleOptions}
+                selectedKey={selectedKey}
+                startFret={startFret}
+                tuningName={tuningName}
+                tuningOptions={tuningOptions}
+              />
+            </div>
+          ) : null}
+          {!isSmartphone && isLayoutEditorVisible ? (
+            <Suspense
+              fallback={(
+                <div
+                  className="mt-4 rounded-[28px] border px-4 py-5 text-[0.84rem]"
+                  style={{
+                    background: "var(--theme-surface-strong)",
+                    borderColor: "var(--theme-border)",
+                    boxShadow: "0 18px 42px var(--theme-fretboard-shadow)",
+                    color: "var(--theme-muted)",
+                  }}
+                >
+                  Loading Monaco editor...
+                </div>
+              )}
+            >
+              <MonacoOutputPanel
+                errorMessage={layoutEditorError}
+                onApply={() => handleApplyLayoutState()}
+                onApplyAndSave={() => handleApplyLayoutState({ save: true })}
+                onChange={handleLayoutEditorChange}
+                onCopyCurrent={handleCopyVisualTweaksState}
+                onLoadCurrent={handleLoadCurrentLayoutState}
+                statusMessage={layoutEditorStatus}
+                value={layoutEditorValue}
+              />
+            </Suspense>
+          ) : null}
         </div>
       </div>
 

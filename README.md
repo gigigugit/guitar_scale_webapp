@@ -54,6 +54,12 @@ The mobile app is configured for standalone launch and landscape orientation.
 ## Features
 
 - Key, scale, instrument, tuning, label mode, fret, and string controls
+- In-key chord mode that derives chord options from the selected key and scale for the active instrument tuning
+- Common alternate tunings for guitar and banjo, including dropped, open, modal, and lowered presets
 - SVG fretboard display optimized for the current view
 - Copy and save actions for tablature output
+
+## Extending chord support
+
+See [docs/in-key-chord-authoring.md](docs/in-key-chord-authoring.md) for the tuning schema and the chord-generation workflow used when adding new instruments or tunings.
 

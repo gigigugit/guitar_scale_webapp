@@ -21,7 +21,11 @@ export default function BottomControlsSheet({ children, isOpen, isSmartphone = f
   ];
   const tabs = providedTabs?.length ? providedTabs : fallbackTabs;
   const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? "primary");
+  const [partiallyCollapsedTabId, setPartiallyCollapsedTabId] = useState(null);
   const sectionRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const savedScrollTopRef = useRef(0);
+  const pendingScrollRestoreRef = useRef(false);
 
   useEffect(() => {
     if (tabs.some((tab) => tab.id === activeTab)) {
@@ -30,6 +34,26 @@ export default function BottomControlsSheet({ children, isOpen, isSmartphone = f
 
     setActiveTab(tabs[0]?.id ?? "primary");
   }, [activeTab, tabs]);
+
+  useEffect(() => {
+    const activeDefinition = tabs.find((tab) => tab.id === activeTab);
+
+    if (!activeDefinition?.allowPartialCollapse) {
+      setPartiallyCollapsedTabId((current) => (current === null ? current : null));
+      return;
+    }
+
+    setPartiallyCollapsedTabId((current) => (current && current !== activeTab ? null : current));
+  }, [activeTab, tabs]);
+
+  useEffect(() => {
+    if (isOpen) {
+      return;
+    }
+
+    setPartiallyCollapsedTabId(null);
+    pendingScrollRestoreRef.current = false;
+  }, [isOpen]);
 
   useEffect(() => {
     if (!onHeightChange) {
@@ -57,9 +81,31 @@ export default function BottomControlsSheet({ children, isOpen, isSmartphone = f
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [activeTab, isOpen, onHeightChange, tabs]);
+  }, [activeTab, isOpen, onHeightChange, partiallyCollapsedTabId, tabs]);
 
-  const activeTabContent = tabs.find((tab) => tab.id === activeTab)?.content ?? null;
+  useEffect(() => {
+    if (!pendingScrollRestoreRef.current || partiallyCollapsedTabId !== null) {
+      return;
+    }
+
+    const element = scrollContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      element.scrollTop = savedScrollTopRef.current;
+      pendingScrollRestoreRef.current = false;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, partiallyCollapsedTabId]);
+
+  const activeTabDefinition = tabs.find((tab) => tab.id === activeTab) ?? null;
+  const activeTabContent = activeTabDefinition
+    ? (typeof activeTabDefinition.renderContent === "function" ? activeTabDefinition.renderContent() : activeTabDefinition.content ?? null)
+    : null;
+  const isPartiallyCollapsed = partiallyCollapsedTabId === activeTab && activeTabDefinition?.allowPartialCollapse;
   const dockStyle = {
     paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
     paddingRight: "max(0.5rem, env(safe-area-inset-right))",
@@ -77,6 +123,22 @@ export default function BottomControlsSheet({ children, isOpen, isSmartphone = f
     fontFamily: "var(--theme-ui-font)",
   };
   const iconButtonStyle = { background: "var(--theme-surface)", borderColor: "var(--theme-border)", color: "var(--theme-muted)" };
+  const secondaryActionButtonStyle = { background: "var(--theme-surface)", borderColor: "var(--theme-border)", color: "var(--theme-app-text)", fontFamily: "var(--theme-ui-font)" };
+
+  function handlePartialCollapse() {
+    if (!activeTabDefinition?.allowPartialCollapse) {
+      return;
+    }
+
+    savedScrollTopRef.current = scrollContainerRef.current?.scrollTop ?? 0;
+    pendingScrollRestoreRef.current = true;
+    setPartiallyCollapsedTabId(activeTabDefinition.id);
+  }
+
+  function handlePartialReopen() {
+    pendingScrollRestoreRef.current = true;
+    setPartiallyCollapsedTabId(null);
+  }
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30" style={dockStyle}>
@@ -87,42 +149,74 @@ export default function BottomControlsSheet({ children, isOpen, isSmartphone = f
             className="pointer-events-auto rounded-t-[24px] border border-[#d9cbc0]/90 bg-[linear-gradient(180deg,rgba(252,246,239,0.98),rgba(244,234,223,0.98))] px-3 pb-4 pt-3 shadow-[0_-20px_50px_rgba(67,43,28,0.18)] backdrop-blur sm:rounded-t-[28px] sm:px-5 sm:pb-5"
             style={drawerStyle}
           >
-            <div className="mb-3 grid gap-2.5 sm:mb-4">
-              <div className="flex justify-center">
+            {isPartiallyCollapsed ? (
+              <div className="flex items-center justify-between gap-3 px-1 py-1">
+                <div className="min-w-0">
+                  <div className="text-[0.78rem] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--theme-muted)" }}>
+                    {activeTabDefinition?.partialCollapseTitle ?? activeTabDefinition?.label ?? "Drawer"}
+                  </div>
+                </div>
                 <button
-                  aria-expanded="true"
-                  aria-label="Collapse controls"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#d7c7bb] bg-[#fbf7f2] text-[#735f54] shadow-[0_4px_12px_rgba(91,56,36,0.08)] transition hover:-translate-y-px hover:text-[#4b3428] focus:outline-none focus:ring-4 focus:ring-[#5b3824]/10"
-                  onClick={onToggle}
-                  style={iconButtonStyle}
+                  className="rounded-full border px-3 py-1.5 text-[0.74rem] font-semibold transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/12"
+                  onClick={handlePartialReopen}
+                  style={secondaryActionButtonStyle}
                   type="button"
                 >
-                  <ChevronIcon open={isOpen} />
+                  Reopen Drawer
                 </button>
               </div>
-              <div className="-mx-1 overflow-x-auto px-1 pb-1">
-                <div className="flex min-w-max items-center gap-2 sm:justify-center">
-                  {tabs.map((tab) => (
-                    <button key={tab.id} className={tabButtonClassName(activeTab === tab.id)} onClick={() => setActiveTab(tab.id)} style={activeTab === tab.id ? activeTabStyle : inactiveTabStyle} type="button">
-                      {tab.label}
+            ) : (
+              <>
+                <div className="mb-3 grid gap-2.5 sm:mb-4">
+                  <div className="flex justify-center">
+                    <button
+                      aria-expanded="true"
+                      aria-label="Collapse controls"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border shadow-[0_4px_12px_rgba(18,19,20,0.16)] transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/10"
+                      onClick={onToggle}
+                      style={iconButtonStyle}
+                      type="button"
+                    >
+                      <ChevronIcon open={isOpen} />
                     </button>
-                  ))}
+                  </div>
+                  <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                    <div className="flex min-w-max items-center gap-2 sm:justify-center">
+                      {tabs.map((tab) => (
+                        <button key={tab.id} className={tabButtonClassName(activeTab === tab.id)} onClick={() => setActiveTab(tab.id)} style={activeTab === tab.id ? activeTabStyle : inactiveTabStyle} type="button">
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {activeTabDefinition?.allowPartialCollapse ? (
+                    <div className="flex justify-end px-1">
+                      <button
+                        className="rounded-full border px-3 py-1.5 text-[0.74rem] font-semibold transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/12"
+                        onClick={handlePartialCollapse}
+                        style={secondaryActionButtonStyle}
+                        type="button"
+                      >
+                        Collapse Drawer
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            </div>
 
-            <div className="relative">
-              <div className="overflow-auto pr-1 transition-[max-height] duration-300 ease-out" style={{ maxHeight: sheetMaxHeight }}>
-                {activeTabContent}
-              </div>
-            </div>
+                <div className="relative">
+                  <div ref={scrollContainerRef} className="overflow-auto pr-1 transition-[max-height] duration-300 ease-out" style={{ maxHeight: sheetMaxHeight }}>
+                    {activeTabContent}
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         ) : (
           <div className="flex justify-center pb-3" style={closedButtonWrapStyle}>
             <button
               aria-expanded="false"
               aria-label="Expand controls"
-              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#cbb9ab] bg-[rgba(251,247,242,0.92)] text-[#6d5a4e] shadow-[0_10px_22px_rgba(91,56,36,0.12)] backdrop-blur transition hover:-translate-y-px hover:text-[#4b3428] focus:outline-none focus:ring-4 focus:ring-[#5b3824]/10"
+              className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_10px_22px_rgba(18,19,20,0.18)] backdrop-blur transition hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-[color:var(--theme-accent)]/10"
               onClick={onToggle}
               style={iconButtonStyle}
               type="button"

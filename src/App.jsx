@@ -6,8 +6,7 @@ export default function App() {
       className="min-h-screen"
       style={{
         backgroundColor: "var(--theme-app-bg)",
-        backgroundImage:
-          "radial-gradient(circle at top, var(--theme-app-glow-soft) 0%, transparent 38%), linear-gradient(180deg, var(--theme-app-bg-accent) 0%, var(--theme-app-bg) 52%, var(--theme-app-bg) 100%)",
+        backgroundImage: "linear-gradient(180deg, var(--theme-app-bg) 0%, var(--theme-app-bg) 100%)",
         color: "var(--theme-app-text)",
         fontFamily: "var(--theme-ui-font)",
       }}

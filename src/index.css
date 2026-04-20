@@ -4,40 +4,40 @@
 
 :root {
   color-scheme: light;
-  background: #f4ebde;
-  --theme-app-bg: #f4ebde;
-  --theme-app-bg-accent: #d8c2a4;
-  --theme-app-glow: #d9a973;
-  --theme-app-glow-soft: rgba(217, 169, 115, 0.34);
-  --theme-app-text: #402d22;
+  background: #030303;
+    --theme-app-bg: #030303;
+    --theme-app-bg-accent: #141414;
+    --theme-app-glow: #666666;
+    --theme-app-glow-soft: rgba(102, 102, 102, 0);
+    --theme-app-text: #c9c9c9;
   --theme-ui-font: "Trebuchet MS", "Segoe UI", sans-serif;
-  --theme-surface: #fbf8f4;
-  --theme-surface-strong: #fffaf6;
-  --theme-border: #d8cec4;
-  --theme-muted: #7a6658;
-  --theme-accent: #5b3824;
-  --theme-accent-strong: #734a33;
-  --theme-accent-text: #f8dfc3;
-  --theme-drawer-start: #fcf6ef;
-  --theme-drawer-end: #f4eadf;
-  --theme-drawer-border: #d9cbc0;
+  --theme-surface: #171717;
+    --theme-surface-strong: #1f1f1f;
+    --theme-border: #2c2c2c;
+    --theme-muted: #8e8e8e;
+    --theme-accent: #565656;
+    --theme-accent-strong: #6f6f6f;
+    --theme-accent-text: #ededed;
+    --theme-drawer-start: #1a1a1a;
+    --theme-drawer-end: #0c0c0c;
+    --theme-drawer-border: #262626;
   --theme-title-font: "Trebuchet MS", "Segoe UI", sans-serif;
-  --theme-title-color: #3d291e;
+  --theme-title-color: #d7d7d7;
   --theme-title-size-desktop: 1.85rem;
   --theme-title-size-mobile: 1.3rem;
   --theme-fretboard-font: "Trebuchet MS", "Segoe UI", sans-serif;
-  --theme-fretboard-panel: #5b3824;
-  --theme-string-label: #f5d2ab;
-  --theme-string-line: #d8bb96;
-  --theme-fret-line: #8b684e;
-  --theme-fret-number: #f0cfaa;
-  --theme-open-fret: #f0cfaa;
-  --theme-marker: #6f4a35;
-  --theme-marker-opacity: 0.32;
-  --theme-note-fill: #f3d1a7;
-  --theme-note-text: #4a2f20;
-  --theme-fretboard-shadow: rgba(91, 56, 36, 0.16);
-  --theme-selection: rgba(166, 80, 31, 0.24);
+  --theme-fretboard-panel: #101010;
+    --theme-string-label: #a7a7a7;
+    --theme-string-line: #5c5c5c;
+    --theme-fret-line: #444444;
+    --theme-fret-number: #8f8f8f;
+    --theme-open-fret: #8f8f8f;
+    --theme-marker: #3a3a3a;
+    --theme-marker-opacity: 0.22;
+    --theme-note-fill: #cfbaa4;
+    --theme-note-text: #111111;
+    --theme-fretboard-shadow: rgba(16, 16, 16, 0.16);
+    --theme-selection: rgba(86, 86, 86, 0.24);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-top: env(safe-area-inset-top, 0px);
@@ -54,9 +54,7 @@ body,
 
 html,
 body {
-  background:
-    radial-gradient(circle at top, var(--theme-app-glow-soft) 0%, transparent 38%),
-    linear-gradient(180deg, var(--theme-app-bg-accent) 0%, var(--theme-app-bg) 52%, var(--theme-app-bg) 100%);
+  background: var(--theme-app-bg);
 }
 
 body {

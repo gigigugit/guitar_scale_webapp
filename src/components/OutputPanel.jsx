@@ -122,16 +122,19 @@ function DragSchematic({ activePart, showOpenLane }) {
 
 export default function OutputPanel({
   isSmartphone = false,
+  isEditFocusMode = false,
   model,
   visualSettings = DEFAULT_FRETBOARD_VISUAL_SETTINGS,
   baseVisualSettings = visualSettings,
   onVisualSettingChange,
+  showLayoutOverlay = false,
   svgRef,
 }) {
   const metrics = getGraphicFretboardMetrics(model, visualSettings);
   const smartphoneAspectRatio = metrics ? `${metrics.svgWidth} / ${metrics.svgHeight}` : undefined;
-  const frameClassName = isSmartphone ? "w-full" : "h-[clamp(300px,46vh,430px)]";
-  const frameStyle = isSmartphone ? { aspectRatio: smartphoneAspectRatio } : undefined;
+  const shouldUseSimplifiedEditorView = !isSmartphone;
+  const frameClassName = isSmartphone || shouldUseSimplifiedEditorView ? "w-full" : "h-[clamp(300px,46vh,430px)]";
+  const frameStyle = isSmartphone || shouldUseSimplifiedEditorView ? { aspectRatio: smartphoneAspectRatio } : undefined;
   const frameRef = useRef(null);
   const [frameSize, setFrameSize] = useState({ height: 0, width: 0 });
   const [activeDrag, setActiveDrag] = useState(null);
@@ -348,6 +351,33 @@ export default function OutputPanel({
     };
   }, [draggableUiMode, metrics, renderedGraphic, visualSettings]);
 
+  const geometryOverlay = useMemo(() => {
+    if (!metrics || !renderedGraphic || !showLayoutOverlay) {
+      return null;
+    }
+
+    const contentLeft = visualSettings.panelPaddingX + renderedGraphic.offsetX;
+    const contentTop = visualSettings.panelPaddingTop + renderedGraphic.offsetY;
+    const scale = renderedGraphic.scale;
+    const stringLabelWidth = Math.max(metrics.leftPad * scale - 10, 24);
+
+    return {
+      boardHeight: (metrics.boardBottomY - metrics.boardTopY) * scale,
+      boardLeft: contentLeft + metrics.boardStartX * scale,
+      boardTop: contentTop + metrics.boardTopY * scale,
+      boardWidth: (metrics.boardEndX - metrics.boardStartX) * scale,
+      openLaneLeft: contentLeft + metrics.leftPad * scale,
+      openLaneWidth: metrics.openLaneWidth * scale,
+      stringLabelLeft: contentLeft,
+      stringLabelTop: contentTop + metrics.boardTopY * scale,
+      stringLabelWidth,
+      svgHeight: renderedGraphic.height,
+      svgLeft: contentLeft,
+      svgTop: contentTop,
+      svgWidth: renderedGraphic.width,
+    };
+  }, [metrics, renderedGraphic, showLayoutOverlay, visualSettings]);
+
   const activePart = activeDrag ? dragHandles.find((handle) => handle.id === activeDrag.id)?.part ?? null : null;
 
   function startDragging(event, handle) {
@@ -369,12 +399,13 @@ export default function OutputPanel({
     // Outer panel padding around the fretboard display. Reduce these values to let the SVG sit closer to the dark rounded panel edge.
     <section
       className={[
-        "relative w-[min(100%,1260px)] overflow-hidden",
-        isSmartphone ? "rounded-[30px]" : "rounded-[38px]",
+        "relative w-[min(100%,1260px)] overflow-hidden mx-auto",
+        isSmartphone ? "rounded-[30px]" : shouldUseSimplifiedEditorView ? "rounded-[18px]" : "rounded-[38px]",
       ].join(" ")}
       style={{
         background: visualSettings.fretboardPanelColor,
-        boxShadow: `0 26px 50px ${withAlpha(visualSettings.fretboardPanelColor, 0.16)}`,
+        border: shouldUseSimplifiedEditorView ? `1px solid ${visualSettings.fretboardPanelColor}` : "none",
+        boxShadow: shouldUseSimplifiedEditorView ? "none" : `0 16px 32px ${withAlpha(visualSettings.fretboardPanelColor, 0.12)}`,
         paddingLeft: `${visualSettings.panelPaddingX}px`,
         paddingRight: `${visualSettings.panelPaddingX}px`,
         paddingTop: `${visualSettings.panelPaddingTop}px`,
@@ -405,12 +436,12 @@ export default function OutputPanel({
           <div
             className="pointer-events-none absolute left-3 top-3 z-10 max-w-[14rem] rounded-[14px] border px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em]"
             style={{
-              background: "rgba(31, 10, 24, 0.72)",
-              borderColor: "rgba(255, 56, 199, 0.26)",
-              color: "rgba(255, 228, 248, 0.94)",
+              background: shouldUseSimplifiedEditorView ? "rgba(14, 20, 25, 0.82)" : "rgba(31, 10, 24, 0.72)",
+              borderColor: shouldUseSimplifiedEditorView ? "rgba(197, 227, 255, 0.18)" : "rgba(255, 56, 199, 0.26)",
+              color: shouldUseSimplifiedEditorView ? "rgba(222, 241, 255, 0.94)" : "rgba(255, 228, 248, 0.94)",
             }}
           >
-            Drag magenta handles. Active handle turns yellow.
+            {shouldUseSimplifiedEditorView ? "Edit Focus: simplified panel with direct layout guides." : "Drag magenta handles. Active handle turns yellow."}
           </div>
           <DragSchematic activePart={activePart} showOpenLane={model.showOpenStrings} />
           {dragHandles.map((handle) => (
@@ -425,6 +456,69 @@ export default function OutputPanel({
             />
           ))}
         </>
+      ) : null}
+
+      {geometryOverlay ? (
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <div
+            className="absolute rounded-[20px] border border-dashed"
+            style={{
+              borderColor: "rgba(90, 120, 255, 0.78)",
+              height: `${geometryOverlay.svgHeight}px`,
+              left: `${geometryOverlay.svgLeft}px`,
+              top: `${geometryOverlay.svgTop}px`,
+              width: `${geometryOverlay.svgWidth}px`,
+            }}
+          >
+            <div className="absolute left-3 top-3 rounded-full px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em]" style={{ background: "rgba(90,120,255,0.92)", color: "white" }}>
+              SVG box
+            </div>
+          </div>
+          <div
+            className="absolute rounded-[18px] border border-dashed"
+            style={{
+              borderColor: "rgba(0, 187, 125, 0.8)",
+              height: `${geometryOverlay.boardHeight}px`,
+              left: `${geometryOverlay.boardLeft}px`,
+              top: `${geometryOverlay.boardTop}px`,
+              width: `${geometryOverlay.boardWidth}px`,
+            }}
+          >
+            <div className="absolute left-3 top-3 rounded-full px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em]" style={{ background: "rgba(0,187,125,0.94)", color: "white" }}>
+              Fretboard body
+            </div>
+          </div>
+          {geometryOverlay.openLaneWidth > 1 ? (
+            <div
+              className="absolute rounded-[12px] border border-dashed"
+              style={{
+                borderColor: "rgba(255, 145, 0, 0.82)",
+                height: `${geometryOverlay.boardHeight}px`,
+                left: `${geometryOverlay.openLaneLeft}px`,
+                top: `${geometryOverlay.boardTop}px`,
+                width: `${geometryOverlay.openLaneWidth}px`,
+              }}
+            >
+              <div className="absolute left-2 top-2 rounded-full px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.14em]" style={{ background: "rgba(255,145,0,0.94)", color: "white" }}>
+                Open lane
+              </div>
+            </div>
+          ) : null}
+          <div
+            className="absolute rounded-[12px] border border-dashed"
+            style={{
+              borderColor: "rgba(226, 77, 167, 0.82)",
+              height: `${geometryOverlay.boardHeight}px`,
+              left: `${geometryOverlay.stringLabelLeft}px`,
+              top: `${geometryOverlay.stringLabelTop}px`,
+              width: `${geometryOverlay.stringLabelWidth}px`,
+            }}
+          >
+            <div className="absolute left-2 top-2 rounded-full px-2.5 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.14em]" style={{ background: "rgba(226,77,167,0.94)", color: "white" }}>
+              String labels
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <div className={frameClassName} ref={frameRef} style={frameStyle}>

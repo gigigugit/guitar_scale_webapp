@@ -1,4 +1,5 @@
 import { DEFAULT_FRETBOARD_VISUAL_SETTINGS } from "../lib/fretboardVisualSettings";
+import { getChordModeNoteStyle, getScaleModeNoteStyle } from "../lib/fretboardNoteStyles";
 
 function noteRadius(value, visualSettings) {
   // Controls note-circle radius. Reduce these values to make the markers hug the label text more closely.
@@ -287,17 +288,21 @@ export default function GraphicFretboard({ model, svgRef, visualSettings = DEFAU
 
         {model.strings.flatMap((stringRow, rowIndex) =>
           stringRow.notes
-            .filter((note) => note.active)
+            .filter((note) => note.visible ?? note.active)
             .map((note) => {
               const radius = noteRadius(note.value, visualSettings);
+              const noteStyle = model.displayTarget === "Chord"
+                ? getChordModeNoteStyle(note, visualSettings)
+                : getScaleModeNoteStyle(note, visualSettings);
 
               return (
                 <g key={`${stringRow.stringIndex}-${note.fret}-${note.value}`}>
                   {/* Actual note-circle render using the radius returned by noteRadius(). */}
-                  <circle cx={xForNote(note.fret)} cy={yForString(rowIndex)} fill={visualSettings.noteFillColor} r={radius} />
+                  <circle cx={xForNote(note.fret)} cy={yForString(rowIndex)} fill={noteStyle.fill} fillOpacity={noteStyle.fillOpacity} r={radius} />
                   <text
                     dominantBaseline="middle"
-                    fill={visualSettings.noteTextColor}
+                    fill={noteStyle.textFill}
+                    fillOpacity={noteStyle.textOpacity}
                     fontFamily={visualSettings.fretboardFontFamily}
                     // Controls label size inside each note-circle. Usually adjust this together with noteRadius().
                     fontSize={note.value.length > 1 ? visualSettings.longNoteFontSize : visualSettings.shortNoteFontSize}

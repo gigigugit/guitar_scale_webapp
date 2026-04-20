@@ -192,17 +192,78 @@ function InstrumentStringSpacingControl({ instrument, max, min, onChange, value 
   );
 }
 
-export default function VisualTweaksPanel({ instrument, instrumentStringSpacing, onInstrumentStringSpacingChange, onReset, onSave, onSettingChange, settings, stringSpacingMax, stringSpacingMin }) {
+function WorkspaceToolsPanel({
+  isEditFocusMode,
+  isLayoutEditorVisible,
+  isLayoutOverlayVisible,
+  onToggleEditFocusMode,
+  onToggleLayoutEditor,
+  onToggleLayoutOverlay,
+}) {
+  return (
+    <section className={sectionCardClassName} style={strongSurfaceStyle}>
+      <div className="mb-2.5">
+        <h3 className="m-0 text-[0.84rem] font-semibold uppercase tracking-[0.16em]">Workspace Tools</h3>
+      </div>
+
+      <div className="grid gap-1.5 sm:grid-cols-3">
+        <button className={actionButtonClassName} onClick={onToggleLayoutEditor} style={isLayoutEditorVisible ? accentButtonStyle : surfaceStyle} type="button">
+          {isLayoutEditorVisible ? "Hide Editor" : "Show Editor"}
+        </button>
+        <button className={actionButtonClassName} onClick={onToggleEditFocusMode} style={isEditFocusMode ? accentButtonStyle : surfaceStyle} type="button">
+          {isEditFocusMode ? "Exit Edit Focus" : "Edit Focus"}
+        </button>
+        <button className={actionButtonClassName} onClick={onToggleLayoutOverlay} style={isLayoutOverlayVisible ? accentButtonStyle : surfaceStyle} type="button">
+          {isLayoutOverlayVisible ? "Hide Layout Overlay" : "Show Layout Overlay"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export default function VisualTweaksPanel({
+  instrument,
+  instrumentStringSpacing,
+  isDesktop = false,
+  isEditFocusMode = false,
+  isLayoutEditorVisible = false,
+  isLayoutOverlayVisible = false,
+  onCopyState,
+  onInstrumentStringSpacingChange,
+  onReset,
+  onSave,
+  onSettingChange,
+  onToggleEditFocusMode,
+  onToggleLayoutEditor,
+  onToggleLayoutOverlay,
+  settings,
+  stringSpacingMax,
+  stringSpacingMin,
+}) {
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap justify-end gap-1.5">
         <button className={actionButtonClassName} onClick={onReset} style={surfaceStyle} type="button">
           Reset
         </button>
+        <button className={actionButtonClassName} onClick={onCopyState} style={surfaceStyle} type="button">
+          Copy State
+        </button>
         <button className={primaryActionButtonClassName} onClick={onSave} style={accentButtonStyle} type="button">
           Save
         </button>
       </div>
+
+      {isDesktop ? (
+        <WorkspaceToolsPanel
+          isEditFocusMode={isEditFocusMode}
+          isLayoutEditorVisible={isLayoutEditorVisible}
+          isLayoutOverlayVisible={isLayoutOverlayVisible}
+          onToggleEditFocusMode={onToggleEditFocusMode}
+          onToggleLayoutEditor={onToggleLayoutEditor}
+          onToggleLayoutOverlay={onToggleLayoutOverlay}
+        />
+      ) : null}
 
       {settings.draggableUiMode ? (
         <div className={sectionCardClassName} style={{ ...strongSurfaceStyle, display: "grid", gap: "0.35rem" }}>

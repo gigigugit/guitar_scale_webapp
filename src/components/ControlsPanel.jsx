@@ -153,6 +153,8 @@ function FretRangeSlider({ startFret, endFret, maxFret, onStartFretChange, onEnd
 }
 
 export default function ControlsPanel({
+  displayTarget,
+  displayTargets = [],
   selectedKey,
   scaleName,
   keyOptions = [],
@@ -168,6 +170,7 @@ export default function ControlsPanel({
   tuningName,
   tuningOptions = [],
   onDisplayModeChange,
+  onDisplayTargetChange,
   onInstrumentChange,
   onKeyChange,
   onTuningChange,
@@ -187,10 +190,23 @@ export default function ControlsPanel({
         <div className="grid gap-3">
           <div className={cardClassName} style={cardStyle}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Scale Setup</h3>
+              <h3 className={sectionTitleClassName} style={sectionTitleStyle}>{displayTarget === "Chord" ? "Chord Setup" : "Scale Setup"}</h3>
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className={tileClassName} style={tileStyle}>
+                <span className={tileLabelClassName} style={tileLabelStyle}>View</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {displayTargets.map((option) => (
+                    <button key={option} className={optionButtonClassName(option === displayTarget)} onClick={() => onDisplayTargetChange(option)} style={optionButtonStyle(option === displayTarget)} type="button">
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {displayTarget === "Scale" ? (
+                <>
               <label className={tileClassName} style={tileStyle}>
                 <span className={tileLabelClassName} style={tileLabelStyle}>Key</span>
                 <select className={[fieldClassName, "mt-2"].join(" ")} style={fieldStyle} value={selectedKey} onChange={(event) => onKeyChange(event.target.value)}>
@@ -212,6 +228,13 @@ export default function ControlsPanel({
                   ))}
                 </select>
               </label>
+                </>
+              ) : (
+                <div className={[tileClassName, "sm:col-span-2 xl:col-span-1"].join(" ")} style={tileStyle}>
+                  <span className={tileLabelClassName} style={tileLabelStyle}>Chord Mode</span>
+                  <p className="mt-2 text-[0.82rem] leading-5" style={mutedTextStyle}>Chord mode follows the selected key and scale. Use the header row to switch between in-key chords, choose triads or sevenths, and scroll through compact voicings that stay inside a four-fret span. Each voicing is labeled by inversion and fret range.</p>
+                </div>
+              )}
 
               <div className={tileClassName} style={tileStyle}>
                 <span className={tileLabelClassName} style={tileLabelStyle}>Label Mode</span>
@@ -230,6 +253,7 @@ export default function ControlsPanel({
             </div>
           </div>
 
+          {displayTarget === "Scale" ? (
           <div className={cardClassName} style={cardStyle}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className={sectionTitleClassName} style={sectionTitleStyle}>Interval Selector</h3>
@@ -255,6 +279,7 @@ export default function ControlsPanel({
               })}
             </div>
           </div>
+          ) : null}
         </div>
 
         <div className="grid gap-3">

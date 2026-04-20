@@ -1,14 +1,16 @@
-const captionClassName = "compact-height-caption text-[0.9rem] text-[#6d5a4e]";
-const selectClassName =
-  "compact-height-select min-h-8 rounded-full border border-[#dbcabf] bg-[#fffaf6] px-3 py-1 text-[0.82rem] font-semibold text-[#5b3824] shadow-[0_1px_4px_rgba(91,56,36,0.06)] outline-none transition focus:border-[#8a6a55] focus:ring-4 focus:ring-[#5b3824]/10";
-const separatorClassName = "compact-height-separator text-[#8d7666]";
-
-const captionStyle = { color: "var(--theme-muted)", fontFamily: "var(--theme-ui-font)" };
-const selectStyle = { background: "var(--theme-surface)", borderColor: "var(--theme-border)", color: "var(--theme-app-text)", fontFamily: "var(--theme-ui-font)" };
-const separatorStyle = { color: "var(--theme-muted)" };
-const fretLabelStyle = { color: "var(--theme-muted)", fontFamily: "var(--theme-ui-font)" };
+import {
+  captionClassName,
+  captionStyle,
+  fretLabelStyle,
+  selectClassName,
+  selectStyle,
+  separatorClassName,
+  separatorStyle,
+} from "./captionSelectorStyles";
 
 export default function FretboardCaptionSelectors({
+  displayMode,
+  displayModes,
   selectedKey,
   scaleName,
   keyOptions,
@@ -26,6 +28,7 @@ export default function FretboardCaptionSelectors({
   onTuningChange,
   onStartFretChange,
   onEndFretChange,
+  onDisplayModeChange,
 }) {
   const lowFretOptions = Array.from({ length: maxFret }, (_, index) => index);
   const highFretOptions = Array.from({ length: maxFret }, (_, index) => index + 1);
@@ -63,6 +66,16 @@ export default function FretboardCaptionSelectors({
 
         <select className={selectClassName} onChange={(event) => onTuningChange(event.target.value)} style={selectStyle} value={tuningName}>
           {tuningOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+
+        <span className={separatorClassName} style={separatorStyle}>|</span>
+
+        <select className={selectClassName} onChange={(event) => onDisplayModeChange(event.target.value)} style={selectStyle} value={displayMode}>
+          {displayModes.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>

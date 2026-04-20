@@ -30,7 +30,7 @@ function ThemePreview({ preset }) {
     <div
       className="relative overflow-hidden rounded-[20px] border p-3 shadow-[0_14px_28px_rgba(20,18,15,0.08)]"
       style={{
-        background: `radial-gradient(circle at 22% 18%, ${overrides.appGlowColor}33 0%, transparent 42%), linear-gradient(180deg, ${overrides.appBackgroundAccentColor}, ${overrides.appBackgroundColor})`,
+        background: `linear-gradient(180deg, ${overrides.appBackgroundAccentColor}, ${overrides.appBackgroundColor})`,
         borderColor: `${overrides.borderColor}`,
         color: overrides.appTextColor,
       }}

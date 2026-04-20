@@ -1,0 +1,23 @@
+{
+  "name": "chat-markdown-preview",
+  "displayName": "Chat Markdown Preview (side)",
+  "description": "Live Markdown preview panel for composing chat input; copy to clipboard to paste into VS Code Chat.",
+  "version": "0.1.0",
+  "publisher": "your-name",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:chatPreview.open"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "chatPreview.open",
+        "title": "Chat Input: Open Markdown Preview"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "echo prepublish",
+    "package": "vsce package"
+  }
+}
