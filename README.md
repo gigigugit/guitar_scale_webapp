@@ -26,9 +26,13 @@ npm run build
 npm run preview
 ```
 
+`npm run build` now produces a root-hosted build for normal local preview or generic static hosting.
+
 ## GitHub Pages
 
 This repo is configured to deploy to GitHub Pages from the `main` branch using GitHub Actions.
+
+The workflow sets `GITHUB_PAGES=true` during the Vite build, so the deployed site automatically uses the repository subpath base on Pages while local builds stay root-based.
 
 Required GitHub setting:
 
