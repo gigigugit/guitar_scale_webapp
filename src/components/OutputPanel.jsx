@@ -399,7 +399,7 @@ export default function OutputPanel({
     // Outer panel padding around the fretboard display. Reduce these values to let the SVG sit closer to the dark rounded panel edge.
     <section
       className={[
-        "relative w-[min(100%,1260px)] overflow-hidden mx-auto",
+        "relative w-full overflow-hidden",
         isSmartphone ? "rounded-[30px]" : shouldUseSimplifiedEditorView ? "rounded-[18px]" : "rounded-[38px]",
       ].join(" ")}
       style={{
