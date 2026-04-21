@@ -1,4 +1,4 @@
-const CACHE_NAME = "dragon-scales-shell-v2";
+const CACHE_NAME = "dragon-scales-shell-v3";
 const APP_SHELL = ["./", "./manifest.webmanifest", "./icons/app-icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon-180.png"];
 
 self.addEventListener("install", (event) => {
