@@ -1,5 +1,6 @@
-const CACHE_NAME = "dragon-scales-shell-v3";
+const CACHE_NAME = "dragon-scales-shell-v4";
 const APP_SHELL = ["./", "./manifest.webmanifest", "./icons/app-icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon-180.png"];
+const CACHEABLE_DESTINATIONS = new Set(["document", "script", "style", "image", "font"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -31,6 +32,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isDocumentRequest = event.request.mode === "navigate" || event.request.destination === "document";
+
+  if (isDocumentRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cachedResponse) => cachedResponse || caches.match("./"))),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -39,16 +58,14 @@ self.addEventListener("fetch", (event) => {
 
       return fetch(event.request)
         .then((networkResponse) => {
-          const cacheableDestinations = new Set(["document", "script", "style", "image", "font"]);
-
-          if (networkResponse.ok && cacheableDestinations.has(event.request.destination)) {
+          if (networkResponse.ok && CACHEABLE_DESTINATIONS.has(event.request.destination)) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
 
           return networkResponse;
         })
-        .catch(() => caches.match("./"));
+        .catch(() => Response.error());
     }),
   );
 });
