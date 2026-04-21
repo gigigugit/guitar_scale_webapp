@@ -449,6 +449,9 @@ export const DEFAULT_FRETBOARD_VISUAL_SETTINGS = {
 
 const SMARTPHONE_REFERENCE_WIDTH = 430;
 const SMARTPHONE_MIN_SCALE = 0.72;
+// Multiplier applied to vertical/size metrics for landscape smartphones so the
+// fretboard panel fills more screen height and individual elements are larger.
+const LANDSCAPE_MOBILE_SCALE_BOOST = 1.4;
 
 export function getResponsiveFretboardVisualSettings(settings, viewportWidth = SMARTPHONE_REFERENCE_WIDTH, isLandscapeSmartphone = false) {
   const normalized = normalizeFretboardVisualSettings(settings);
@@ -483,12 +486,34 @@ export function getResponsiveFretboardVisualSettings(settings, viewportWidth = S
     return responsiveSettings;
   }
 
+  const V = LANDSCAPE_MOBILE_SCALE_BOOST;
   return {
     ...responsiveSettings,
+    // Horizontal adjustments: reduce side padding to use more screen width.
     panelPaddingX: responsiveSettings.panelPaddingX * 0.55,
     leftPad: responsiveSettings.leftPad * 0.8,
     rightPad: responsiveSettings.rightPad * 0.55,
     openLaneWidth: responsiveSettings.openLaneWidth * 0.82,
+    // Vertical/size boost: increase string spacing, note circles, fonts, and
+    // inner panel padding so the fretboard panel fills more vertical space and
+    // all elements are proportionally larger on the landscape mobile screen.
+    panelPaddingTop: responsiveSettings.panelPaddingTop * V,
+    panelPaddingBottom: responsiveSettings.panelPaddingBottom * V,
+    topPad: responsiveSettings.topPad * V,
+    bottomPad: responsiveSettings.bottomPad * V,
+    compactStringGap: responsiveSettings.compactStringGap * V,
+    standardStringGap: responsiveSettings.standardStringGap * V,
+    nutLineWidth: responsiveSettings.nutLineWidth * 1.2,
+    fretLineWidth: responsiveSettings.fretLineWidth * 1.2,
+    shortNoteRadius: responsiveSettings.shortNoteRadius * V,
+    longNoteRadius: responsiveSettings.longNoteRadius * V,
+    shortNoteFontSize: responsiveSettings.shortNoteFontSize * V,
+    longNoteFontSize: responsiveSettings.longNoteFontSize * V,
+    stringLabelFontSize: responsiveSettings.stringLabelFontSize * V,
+    // Fret number and open-string labels sit at a hardcoded y=10 in the SVG,
+    // so use a smaller boost to avoid clipping at the top of the viewBox.
+    fretNumberFontSize: responsiveSettings.fretNumberFontSize * 1.15,
+    openFretLabelSize: responsiveSettings.openFretLabelSize * 1.15,
   };
 }
 
