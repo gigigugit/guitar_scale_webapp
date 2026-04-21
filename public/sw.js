@@ -56,14 +56,16 @@ self.addEventListener("fetch", (event) => {
         return cachedResponse;
       }
 
-      return fetch(event.request).then((networkResponse) => {
-        if (networkResponse.ok && CACHEABLE_DESTINATIONS.has(event.request.destination)) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-        }
+      return fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok && CACHEABLE_DESTINATIONS.has(event.request.destination)) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
 
-        return networkResponse;
-      });
+          return networkResponse;
+        })
+        .catch(() => Response.error());
     }),
   );
 });
