@@ -1,4 +1,10 @@
-const CACHE_NAME = "dragon-scales-shell-v4";
+const CACHE_VERSION = (() => {
+  const scriptUrl = new URL(self.location.href);
+  const rawVersion = scriptUrl.searchParams.get("appVersion") || "dev";
+
+  return rawVersion.replace(/[^a-z0-9._-]/gi, "-");
+})();
+const CACHE_NAME = `dragon-scales-shell-${CACHE_VERSION}`;
 const APP_SHELL = ["./", "./manifest.webmanifest", "./icons/app-icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon-180.png"];
 const CACHEABLE_DESTINATIONS = new Set(["document", "script", "style", "image", "font"]);
 

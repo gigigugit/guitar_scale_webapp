@@ -1,6 +1,8 @@
 export const FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY = "dragon-scales:fretboard-visual-settings";
+export const FRETBOARD_VISUAL_SETTINGS_STORAGE_VERSION = 2;
 
 export const THEME_PRESET_IDS = {
+  MOCKUP_SUBTLE_BLUE: "mockup-subtle-blue",
   VINTAGE_WORKSHOP: "vintage-workshop",
   STAGE_BLACK: "stage-black",
   MODERN_LUTHIER: "modern-luthier",
@@ -53,13 +55,31 @@ const THEME_FIELD_KEYS = [
   "openFretLabelColor",
   "markerColor",
   "markerOpacity",
+  "rootNoteFillColor",
+  "rootNoteTextColor",
+  "fifthNoteFillColor",
+  "fifthNoteTextColor",
   "noteFillColor",
+  "altNoteFillColor",
+  "altNoteTextColor",
   "highlightedNoteFillColor",
   "noteTextColor",
   "fretboardPanelColor",
 ];
 
-const STAGE_BLACK_THEME_OVERRIDES = {
+function withLegacyScalePalette(theme) {
+  return {
+    ...theme,
+    rootNoteFillColor: theme.highlightedNoteFillColor,
+    rootNoteTextColor: theme.noteTextColor,
+    fifthNoteFillColor: theme.noteFillColor,
+    fifthNoteTextColor: theme.noteTextColor,
+    altNoteFillColor: theme.noteFillColor,
+    altNoteTextColor: theme.noteTextColor,
+  };
+}
+
+const STAGE_BLACK_THEME_OVERRIDES = withLegacyScalePalette({
   appBackgroundColor: "#030303",
   appBackgroundAccentColor: "#141414",
   appGlowColor: "#666666",
@@ -91,9 +111,9 @@ const STAGE_BLACK_THEME_OVERRIDES = {
   highlightedNoteFillColor: "#bc8457",
   noteTextColor: "#111111",
   fretboardPanelColor: "#101010",
-};
+});
 
-const VINTAGE_WORKSHOP_THEME_OVERRIDES = {
+const VINTAGE_WORKSHOP_THEME_OVERRIDES = withLegacyScalePalette({
   appBackgroundColor: "#efe3d2",
   appBackgroundAccentColor: "#dcc4a8",
   appGlowColor: "#d6a871",
@@ -125,12 +145,53 @@ const VINTAGE_WORKSHOP_THEME_OVERRIDES = {
   highlightedNoteFillColor: "#0566F0",
   noteTextColor: "#4a3021",
   fretboardPanelColor: "#5d3a28",
+});
+
+const MOCKUP_SUBTLE_BLUE_THEME_OVERRIDES = {
+  appBackgroundColor: "#ecebe9",
+  appBackgroundAccentColor: "#ecebe9",
+  appGlowColor: "#96c7de",
+  appTextColor: "#1a1a1a",
+  uiFontFamily: '"Trebuchet MS", "Segoe UI", sans-serif',
+  surfaceColor: "#f6f5f0",
+  surfaceStrongColor: "#f1efeb",
+  borderColor: "#2a2b2d",
+  mutedTextColor: "#666666",
+  accentColor: "#1b5e9c",
+  accentStrongColor: "#3c88be",
+  accentTextColor: "#e8f0f8",
+  drawerBackgroundStartColor: "#f6f5f0",
+  drawerBackgroundEndColor: "#ecebe9",
+  drawerBorderColor: "#2a2b2d",
+  titleFontFamily: '"Trebuchet MS", "Segoe UI", sans-serif',
+  titleColor: "#1a1a1a",
+  titleFontSizeDesktop: 1.82,
+  titleFontSizeMobile: 1.28,
+  fretboardFontFamily: '"Trebuchet MS", "Segoe UI", sans-serif',
+  stringLabelColor: "#666666",
+  stringLineColor: "#383838",
+  fretLineColor: "#2c2c2c",
+  fretNumberColor: "#555555",
+  openFretLabelColor: "#555555",
+  markerColor: "#232323",
+  markerOpacity: 1,
+  rootNoteFillColor: "#1b5e9c",
+  rootNoteTextColor: "#e8f0f8",
+  fifthNoteFillColor: "#3c88be",
+  fifthNoteTextColor: "#e8f0f8",
+  noteFillColor: "#6baecc",
+  altNoteFillColor: "#96c7de",
+  altNoteTextColor: "#0d2a3d",
+  highlightedNoteFillColor: "#1b5e9c",
+  noteTextColor: "#e8f0f8",
+  fretboardPanelColor: "#f7f7f7",
 };
 
 const THEME_PRESET_OVERRIDES = {
+  [THEME_PRESET_IDS.MOCKUP_SUBTLE_BLUE]: MOCKUP_SUBTLE_BLUE_THEME_OVERRIDES,
   [THEME_PRESET_IDS.VINTAGE_WORKSHOP]: VINTAGE_WORKSHOP_THEME_OVERRIDES,
   [THEME_PRESET_IDS.STAGE_BLACK]: STAGE_BLACK_THEME_OVERRIDES,
-  [THEME_PRESET_IDS.MODERN_LUTHIER]: {
+  [THEME_PRESET_IDS.MODERN_LUTHIER]: withLegacyScalePalette({
     appBackgroundColor: "#f3eee5",
     appBackgroundAccentColor: "#d9c3a8",
     appGlowColor: "#c88f57",
@@ -162,8 +223,8 @@ const THEME_PRESET_OVERRIDES = {
     highlightedNoteFillColor: "#0566F0",
     noteTextColor: "#42291b",
     fretboardPanelColor: "#4b3429",
-  },
-  [THEME_PRESET_IDS.NEON_FRET_LAB]: {
+  }),
+  [THEME_PRESET_IDS.NEON_FRET_LAB]: withLegacyScalePalette({
     appBackgroundColor: "#09111e",
     appBackgroundAccentColor: "#121d34",
     appGlowColor: "#0fd0c7",
@@ -195,8 +256,8 @@ const THEME_PRESET_OVERRIDES = {
     highlightedNoteFillColor: "#0566F0",
     noteTextColor: "#071018",
     fretboardPanelColor: "#07111d",
-  },
-  [THEME_PRESET_IDS.PAPER_PRACTICE_NOTEBOOK]: {
+  }),
+  [THEME_PRESET_IDS.PAPER_PRACTICE_NOTEBOOK]: withLegacyScalePalette({
     appBackgroundColor: "#f6f0df",
     appBackgroundAccentColor: "#e2d6b3",
     appGlowColor: "#a3bfd8",
@@ -228,8 +289,8 @@ const THEME_PRESET_OVERRIDES = {
     highlightedNoteFillColor: "#0566F0",
     noteTextColor: "#fff9f4",
     fretboardPanelColor: "#5e7488",
-  },
-  [THEME_PRESET_IDS.STUDIO_CONSOLE]: {
+  }),
+  [THEME_PRESET_IDS.STUDIO_CONSOLE]: withLegacyScalePalette({
     appBackgroundColor: "#161b1f",
     appBackgroundAccentColor: "#2f353c",
     appGlowColor: "#58a97f",
@@ -261,10 +322,21 @@ const THEME_PRESET_OVERRIDES = {
     highlightedNoteFillColor: "#0566F0",
     noteTextColor: "#0f1714",
     fretboardPanelColor: "#101417",
-  },
+  }),
 };
 
 export const THEME_PRESETS = [
+  {
+    id: THEME_PRESET_IDS.MOCKUP_SUBTLE_BLUE,
+    label: "Mockup Subtle Blue",
+    description: "Light shell, monochrome fretboard frame, and restrained blue note hierarchy from the SVG mockup.",
+    vibe: "Editorial and precise",
+    preview: {
+      chip: "#1b5e9c",
+      chipText: "#e8f0f8",
+      panel: "#f7f7f7",
+    },
+  },
   {
     id: THEME_PRESET_IDS.VINTAGE_WORKSHOP,
     label: "Vintage Workshop",
@@ -405,7 +477,13 @@ export const FRETBOARD_VISUAL_SETTING_FIELDS = [
       { key: "openFretLabelSize", label: "Open fret size", description: "Text size for the open-string 0 marker.", min: 8, max: 18, step: 0.5 },
       { key: "markerColor", label: "Marker color", description: "Color used for fretboard dot markers.", type: "color" },
       { key: "markerOpacity", label: "Marker opacity", description: "Opacity for the fretboard markers.", min: 0, max: 1, step: 0.05 },
-      { key: "noteFillColor", label: "Note fill", description: "Fill color for the note circles.", type: "color" },
+      { key: "rootNoteFillColor", label: "Root note fill", description: "Fill color for root notes in scale view.", type: "color" },
+      { key: "rootNoteTextColor", label: "Root note text", description: "Text color for root notes in scale view.", type: "color" },
+      { key: "fifthNoteFillColor", label: "Fifth note fill", description: "Fill color for fifths in scale view.", type: "color" },
+      { key: "fifthNoteTextColor", label: "Fifth note text", description: "Text color for fifths in scale view.", type: "color" },
+      { key: "noteFillColor", label: "Primary scale tone fill", description: "Fill color for the main scale-tone note circles.", type: "color" },
+      { key: "altNoteFillColor", label: "Alternate scale tone fill", description: "Secondary fill color used for a contrasting scale-tone family.", type: "color" },
+      { key: "altNoteTextColor", label: "Alternate scale tone text", description: "Text color used on the alternate scale-tone fill.", type: "color" },
       { key: "highlightedNoteFillColor", label: "Highlighted note fill", description: "Fill color for highlighted chord notes.", type: "color" },
       { key: "shortNoteRadius", label: "Short note circle size", description: "Circle size for single-character notes and intervals.", min: 6, max: 22, step: 1 },
       { key: "longNoteRadius", label: "Long note circle size", description: "Circle size for longer note labels like C# or III.", min: 8, max: 26, step: 1 },
@@ -418,8 +496,8 @@ export const FRETBOARD_VISUAL_SETTING_FIELDS = [
 ];
 
 export const DEFAULT_FRETBOARD_VISUAL_SETTINGS = {
-  themePresetId: THEME_PRESET_IDS.VINTAGE_WORKSHOP,
-  ...VINTAGE_WORKSHOP_THEME_OVERRIDES,
+  themePresetId: THEME_PRESET_IDS.MOCKUP_SUBTLE_BLUE,
+  ...MOCKUP_SUBTLE_BLUE_THEME_OVERRIDES,
   draggableUiMode: false,
   panelPaddingX: 8,
   panelPaddingTop: 8,
@@ -579,7 +657,7 @@ export function getThemePreset(presetId) {
 }
 
 export function getThemePresetOverrides(presetId) {
-  return THEME_PRESET_OVERRIDES[presetId] ?? THEME_PRESET_OVERRIDES[THEME_PRESET_IDS.VINTAGE_WORKSHOP];
+  return THEME_PRESET_OVERRIDES[presetId] ?? THEME_PRESET_OVERRIDES[THEME_PRESET_IDS.MOCKUP_SUBTLE_BLUE];
 }
 
 export function applyThemePreset(settings, presetId) {
@@ -609,7 +687,8 @@ function clampNumber(value, min, max) {
 }
 
 export function normalizeFretboardVisualSettings(candidate) {
-  const merged = { ...DEFAULT_FRETBOARD_VISUAL_SETTINGS, ...(candidate ?? {}) };
+  const candidateSettings = candidate ?? {};
+  const merged = { ...DEFAULT_FRETBOARD_VISUAL_SETTINGS, ...candidateSettings };
   const normalized = { ...merged };
 
   FRETBOARD_VISUAL_SETTING_FIELDS.forEach((section) => {
@@ -635,6 +714,13 @@ export function normalizeFretboardVisualSettings(candidate) {
     });
   });
 
+  normalized.rootNoteFillColor = isValidHexColor(candidateSettings.rootNoteFillColor) ? candidateSettings.rootNoteFillColor.trim() : normalized.highlightedNoteFillColor;
+  normalized.rootNoteTextColor = isValidHexColor(candidateSettings.rootNoteTextColor) ? candidateSettings.rootNoteTextColor.trim() : normalized.noteTextColor;
+  normalized.fifthNoteFillColor = isValidHexColor(candidateSettings.fifthNoteFillColor) ? candidateSettings.fifthNoteFillColor.trim() : normalized.noteFillColor;
+  normalized.fifthNoteTextColor = isValidHexColor(candidateSettings.fifthNoteTextColor) ? candidateSettings.fifthNoteTextColor.trim() : normalized.noteTextColor;
+  normalized.altNoteFillColor = isValidHexColor(candidateSettings.altNoteFillColor) ? candidateSettings.altNoteFillColor.trim() : normalized.noteFillColor;
+  normalized.altNoteTextColor = isValidHexColor(candidateSettings.altNoteTextColor) ? candidateSettings.altNoteTextColor.trim() : normalized.noteTextColor;
+
   const knownThemeIds = new Set(THEME_PRESETS.map((preset) => preset.id));
   const candidateThemePresetId = typeof merged.themePresetId === "string" ? merged.themePresetId : DEFAULT_FRETBOARD_VISUAL_SETTINGS.themePresetId;
   normalized.themePresetId = knownThemeIds.has(candidateThemePresetId) ? candidateThemePresetId : DEFAULT_FRETBOARD_VISUAL_SETTINGS.themePresetId;
@@ -653,14 +739,84 @@ export function loadFretboardVisualSettings() {
       return DEFAULT_FRETBOARD_VISUAL_SETTINGS;
     }
 
-    const parsed = JSON.parse(saved);
-    const normalized = normalizeFretboardVisualSettings(parsed);
-    if (!parsed?.themePresetId) {
-      return { ...normalized, themePresetId: detectMatchingThemePreset(normalized) };
+    const { clearStoredSettings, normalizedSettings, rewriteStoredSettings } = deserializeStoredFretboardVisualSettings(saved);
+
+    if (clearStoredSettings) {
+      window.localStorage.removeItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY);
+      return DEFAULT_FRETBOARD_VISUAL_SETTINGS;
     }
 
-    return normalized;
+    if (rewriteStoredSettings) {
+      window.localStorage.setItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY, serializeFretboardVisualSettings(normalizedSettings));
+    }
+
+    return normalizedSettings;
   } catch {
     return DEFAULT_FRETBOARD_VISUAL_SETTINGS;
   }
+}
+
+export function serializeFretboardVisualSettings(settings) {
+  return JSON.stringify({
+    settings: normalizeFretboardVisualSettings(settings),
+    version: FRETBOARD_VISUAL_SETTINGS_STORAGE_VERSION,
+  });
+}
+
+export function deserializeStoredFretboardVisualSettings(rawValue) {
+  const parsed = JSON.parse(rawValue);
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {
+      clearStoredSettings: true,
+      normalizedSettings: DEFAULT_FRETBOARD_VISUAL_SETTINGS,
+      rewriteStoredSettings: false,
+    };
+  }
+
+  if (typeof parsed.version === "number") {
+    if (parsed.version !== FRETBOARD_VISUAL_SETTINGS_STORAGE_VERSION || !parsed.settings || typeof parsed.settings !== "object" || Array.isArray(parsed.settings)) {
+      return {
+        clearStoredSettings: true,
+        normalizedSettings: DEFAULT_FRETBOARD_VISUAL_SETTINGS,
+        rewriteStoredSettings: false,
+      };
+    }
+
+    return {
+      clearStoredSettings: false,
+      normalizedSettings: normalizeFretboardVisualSettings(parsed.settings),
+      rewriteStoredSettings: false,
+    };
+  }
+
+  const normalizedLegacySettings = normalizeLegacyFretboardVisualSettings(parsed);
+  const legacyThemePresetId = parsed.themePresetId ?? detectMatchingThemePreset(normalizedLegacySettings);
+
+  if (legacyThemePresetId === THEME_PRESET_IDS.VINTAGE_WORKSHOP) {
+    return {
+      clearStoredSettings: true,
+      normalizedSettings: DEFAULT_FRETBOARD_VISUAL_SETTINGS,
+      rewriteStoredSettings: false,
+    };
+  }
+
+  return {
+    clearStoredSettings: false,
+    normalizedSettings: normalizedLegacySettings,
+    rewriteStoredSettings: true,
+  };
+}
+
+function normalizeLegacyFretboardVisualSettings(parsed) {
+  const normalized = normalizeFretboardVisualSettings(parsed);
+
+  if (!parsed?.themePresetId) {
+    return {
+      ...normalized,
+      themePresetId: detectMatchingThemePreset(normalized),
+    };
+  }
+
+  return normalized;
 }

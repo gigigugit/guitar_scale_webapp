@@ -174,9 +174,18 @@ const CHORD_SELECTION_BASE_CACHE_LIMIT = 256;
 
 const FRET_MARKERS = new Set([0, 1, 3, 5, 7, 9, 12, 15, 17]);
 const CHORD_INTERVAL_LABELS = ["1", "b2", "2", "b3", "3", "4", "b5", "5", "#5", "6", "b7", "7"];
-const COMPACT_CHORD_MAX_RESULTS = 18;
+const COMPACT_CHORD_MAX_RESULTS = 72;
+const COMPACT_CHORD_MAX_RESULTS_PER_MIN_FRET = 4;
 const COMPACT_CHORD_MAX_SPAN = 4;
+const OPEN_CHORD_MAX_SPAN = 7;
+const PLAYABLE_CHORD_MAX_FRETTED_POSITIONS = 4;
 const COMPACT_CHORD_MAX_STRING_CANDIDATES = 6;
+const VOICING_FAMILY_OPTIONS = [
+  { id: "open", label: "Open", order: 0 },
+  { id: "barre", label: "Barre", order: 1 },
+  { id: "moveable", label: "Moveable", order: 2 },
+];
+const VOICING_FAMILY_OPTIONS_BY_ID = Object.fromEntries(VOICING_FAMILY_OPTIONS.map((option) => [option.id, option]));
 
 const KNOWN_CHORD_QUALITIES = {
   "0,4,7": { label: "Major", slug: "major" },
@@ -229,12 +238,38 @@ function buildCompactVoicingWindowLabel(minimumFret, maximumFret) {
   return `Frets ${minimumFret}-${maximumFret}`;
 }
 
-function buildInversionLabel(inversionIndex) {
-  if (inversionIndex <= 0) {
-    return "Root Position";
+function getIntervalBucketLabel(interval) {
+  if (interval === 0) {
+    return "Root";
   }
 
-  return `${ordinalLabel(inversionIndex)} Inversion`;
+  if (interval === 3 || interval === 4) {
+    return "3rd";
+  }
+
+  if (interval === 6 || interval === 7 || interval === 8) {
+    return "5th";
+  }
+
+  if (interval === 9 || interval === 10 || interval === 11) {
+    return "7th";
+  }
+
+  return CHORD_INTERVAL_LABELS[interval] ?? "Root";
+}
+
+function buildInversionOptionLabel(interval) {
+  return getIntervalBucketLabel(interval);
+}
+
+function buildInversionLabel(interval) {
+  const inversionLabel = getIntervalBucketLabel(interval);
+
+  if (inversionLabel === "Root") {
+    return "Root in Bass";
+  }
+
+  return `${inversionLabel} in Bass`;
 }
 
 function buildCacheKey(parts) {
@@ -637,6 +672,17 @@ function buildVariantView(positionFrets, maxFret) {
   };
 }
 
+function getChordIntervalForNote(note, chordDefinition) {
+  const noteIndex = getNoteIndex(note);
+  const rootIndex = getNoteIndex(chordDefinition.root);
+
+  if (noteIndex < 0 || rootIndex < 0) {
+    return 0;
+  }
+
+  return normalizePitchClass(noteIndex - rootIndex);
+}
+
 function analyzeChordVoicing(candidates) {
   const voiced = candidates.filter((candidate) => candidate.fret >= 0);
   const fretted = voiced.filter((candidate) => candidate.fret > candidate.nutFret);
@@ -657,16 +703,86 @@ function analyzeChordVoicing(candidates) {
     return left[0] - right[0];
   });
   const [primaryRepeatedFret, primaryRepeatedCount] = repeatedFretEntries[0] ?? [null, 0];
+  const frettedUniqueFretCount = fretCounts.size;
+  const voicedFrets = voiced.map((candidate) => candidate.fret);
+  const minimumFret = voicedFrets.length > 0 ? Math.min(...voicedFrets) : 0;
+  const maximumFret = voicedFrets.length > 0 ? Math.max(...voicedFrets) : 0;
+  const fretSpan = voicedFrets.length > 1 ? maximumFret - minimumFret : 0;
+  const internalMuteCount = voicedIndices.length > 0 ? contiguousSpan - voicedIndices.length : 0;
 
   return {
     fretted,
-    internalMuteCount: voicedIndices.length > 0 ? contiguousSpan - voicedIndices.length : 0,
+    frettedUniqueFretCount,
+    fretSpan,
+    highestVoicedStringIndex: voicedIndices[voicedIndices.length - 1] ?? -1,
+    internalMuteCount,
+    isBarre: primaryRepeatedCount > 2,
+    isMoveable: openCount === 0,
+    isOpen: openCount > 0,
     lowestVoicedStringIndex: candidates.findIndex((candidate) => candidate.fret >= 0),
+    maximumFret,
+    minimumFret,
     openCount,
     primaryRepeatedCount,
     primaryRepeatedFret,
+    requiresMuting: internalMuteCount > 0,
     voiced,
+    voicedIndices,
   };
+}
+
+function getVoicedIntervalBuckets(candidates, chordDefinition) {
+  const { voiced } = analyzeChordVoicing(candidates);
+
+  return new Set(voiced.map((candidate) => getIntervalBucketLabel(getChordIntervalForNote(candidate.note, chordDefinition))));
+}
+
+function deriveSpeciesCategory(candidates, chordDefinition) {
+  const voicingAnalysis = analyzeChordVoicing(candidates);
+  const intervalBuckets = getVoicedIntervalBuckets(candidates, chordDefinition);
+  const { voicedIndices } = voicingAnalysis;
+
+  if (
+    voicingAnalysis.voiced.length === 3
+    && intervalBuckets.has("Root")
+    && intervalBuckets.has("3rd")
+    && intervalBuckets.has("7th")
+  ) {
+    return { id: "shell", label: "Shell", order: 2 };
+  }
+
+  if (voicingAnalysis.voiced.length === 4 && voicingAnalysis.internalMuteCount === 0) {
+    return { id: "drop-2", label: "Drop 2", order: 0 };
+  }
+
+  const hasDrop3Shape = voicedIndices.length >= 4
+    && voicedIndices[1] - voicedIndices[0] === 2
+    && voicedIndices.slice(2).every((currentIndex, index) => currentIndex - voicedIndices[index + 1] === 1);
+
+  if (hasDrop3Shape) {
+    return { id: "drop-3", label: "Drop 3", order: 1 };
+  }
+
+  return null;
+}
+
+function deriveMechanicalCategory(variant) {
+  if (variant.isOpen) {
+    return VOICING_FAMILY_OPTIONS_BY_ID.open;
+  }
+
+  if (variant.isBarre) {
+    return VOICING_FAMILY_OPTIONS_BY_ID.barre;
+  }
+
+  return VOICING_FAMILY_OPTIONS_BY_ID.moveable;
+}
+
+function isChordVoicingPlayable(voicingAnalysis) {
+  const playableSpan = voicingAnalysis.isOpen || voicingAnalysis.fretSpan <= COMPACT_CHORD_MAX_SPAN;
+  const playableFingerCount = voicingAnalysis.frettedUniqueFretCount <= PLAYABLE_CHORD_MAX_FRETTED_POSITIONS;
+
+  return playableSpan && playableFingerCount;
 }
 
 function chordVoicingSortKey(variant) {
@@ -681,22 +797,301 @@ function findVoicingInversionIndex(candidates, chordDefinition) {
   return inversionIndex >= 0 ? inversionIndex : 0;
 }
 
+function getVoicingInversionInterval(candidates, chordDefinition) {
+  const { voiced } = analyzeChordVoicing(candidates);
+  const bassNote = voiced[0]?.note ?? chordDefinition.root;
+
+  return getChordIntervalForNote(bassNote, chordDefinition);
+}
+
 function buildCompactChordVariant(candidates, chordDefinition, maxFret, score, index) {
+  const voicingAnalysis = analyzeChordVoicing(candidates);
   const frets = candidates.map((candidate) => candidate.fret);
   const voicedFrets = frets.filter((fret) => fret >= 0);
   const minimumFret = voicedFrets.length > 0 ? Math.min(...voicedFrets) : 0;
   const maximumFret = voicedFrets.length > 0 ? Math.max(...voicedFrets) : 0;
+  const averageFret = voicedFrets.length > 0 ? voicedFrets.reduce((sum, fret) => sum + fret, 0) / voicedFrets.length : 0;
   const inversionIndex = findVoicingInversionIndex(candidates, chordDefinition);
-  const inversionLabel = buildInversionLabel(inversionIndex);
+  const inversionInterval = getVoicingInversionInterval(candidates, chordDefinition);
+  const inversionLabel = buildInversionLabel(inversionInterval);
+  const speciesDefinition = deriveSpeciesCategory(candidates, chordDefinition);
+  const requiresMutingSuffix = voicingAnalysis.requiresMuting ? " - Requires Muting" : "";
 
   return {
-    baseLabel: `${inversionLabel} - ${buildCompactVoicingWindowLabel(minimumFret, maximumFret)}`,
+    averageFret,
+    baseLabel: `${inversionLabel} - ${buildCompactVoicingWindowLabel(minimumFret, maximumFret)}${requiresMutingSuffix}`,
+    frettedUniqueFretCount: voicingAnalysis.frettedUniqueFretCount,
     frets,
     id: buildCompactVoicingId(index),
+    highestVoicedStringIndex: voicingAnalysis.highestVoicedStringIndex,
+    inversionId: `inversion-${inversionIndex}`,
+    inversionInterval,
     inversionIndex,
-    label: `${inversionLabel} - ${buildCompactVoicingWindowLabel(minimumFret, maximumFret)}`,
+    isBarre: voicingAnalysis.isBarre,
+    isMoveable: voicingAnalysis.isMoveable,
+    isOpen: voicingAnalysis.isOpen,
+    label: `${inversionLabel} - ${buildCompactVoicingWindowLabel(minimumFret, maximumFret)}${requiresMutingSuffix}`,
+    lowestVoicedStringIndex: voicingAnalysis.lowestVoicedStringIndex,
+    maxFret: maximumFret,
+    minFret: minimumFret,
+    openCount: voicingAnalysis.openCount,
+    primaryRepeatedCount: voicingAnalysis.primaryRepeatedCount,
+    primaryRepeatedFret: voicingAnalysis.primaryRepeatedFret,
+    requiresMuting: voicingAnalysis.requiresMuting,
     score,
+    speciesId: speciesDefinition?.id ?? null,
+    speciesLabel: speciesDefinition?.label ?? null,
+    speciesOrder: speciesDefinition?.order ?? Number.POSITIVE_INFINITY,
     view: buildVariantView(frets, maxFret),
+    voicedCount: voicingAnalysis.voiced.length,
+  };
+}
+
+function getActiveVoicingFrets(frets) {
+  return frets.filter((fret) => fret >= 0);
+}
+
+function getVoicingMinimumFret(frets) {
+  const activeFrets = getActiveVoicingFrets(frets);
+
+  return activeFrets.length > 0 ? Math.min(...activeFrets) : 0;
+}
+
+function getVoicingMaximumFret(frets) {
+  const activeFrets = getActiveVoicingFrets(frets);
+
+  return activeFrets.length > 0 ? Math.max(...activeFrets) : 0;
+}
+
+function getVoicingInversionForSort(frets, tuning, chordDefinition) {
+  return findVoicingInversionIndex(
+    frets.map((fret, index) => ({
+      fret,
+      note: fret >= 0 ? noteAtFret(tuning[index], fret, chordDefinition.accidentalPreference) : null,
+      nutFret: tuning[index].nutFret,
+    })),
+    chordDefinition,
+  );
+}
+
+function compareRawChordVoicings(left, right, tuning, chordDefinition) {
+  const leftMin = getVoicingMinimumFret(left.frets);
+  const rightMin = getVoicingMinimumFret(right.frets);
+  if (leftMin !== rightMin) {
+    return leftMin - rightMin;
+  }
+
+  const leftInversion = getVoicingInversionForSort(left.frets, tuning, chordDefinition);
+  const rightInversion = getVoicingInversionForSort(right.frets, tuning, chordDefinition);
+  if (leftInversion !== rightInversion) {
+    return leftInversion - rightInversion;
+  }
+
+  const leftMax = getVoicingMaximumFret(left.frets);
+  const rightMax = getVoicingMaximumFret(right.frets);
+  if (leftMax !== rightMax) {
+    return leftMax - rightMax;
+  }
+
+  if (left.score !== right.score) {
+    return right.score - left.score;
+  }
+
+  return chordVoicingSortKey(left).localeCompare(chordVoicingSortKey(right));
+}
+
+function selectChordVariantsForDisplay(variants, tuning, chordDefinition) {
+  if (variants.length <= COMPACT_CHORD_MAX_RESULTS) {
+    return [...variants].sort((left, right) => compareRawChordVoicings(left, right, tuning, chordDefinition));
+  }
+
+  const variantsByMinimumFret = variants.reduce((grouped, variant) => {
+    const minimumFret = getVoicingMinimumFret(variant.frets);
+    const currentGroup = grouped.get(minimumFret) ?? [];
+
+    currentGroup.push(variant);
+    grouped.set(minimumFret, currentGroup);
+    return grouped;
+  }, new Map());
+
+  return [...variantsByMinimumFret.values()]
+    .flatMap((bucket) => bucket
+      .sort((left, right) => {
+        if (left.score !== right.score) {
+          return right.score - left.score;
+        }
+
+        return compareRawChordVoicings(left, right, tuning, chordDefinition);
+      })
+      .slice(0, COMPACT_CHORD_MAX_RESULTS_PER_MIN_FRET))
+    .sort((left, right) => compareRawChordVoicings(left, right, tuning, chordDefinition))
+    .slice(0, COMPACT_CHORD_MAX_RESULTS);
+}
+
+function compareVoicingsByDisplayPosition(left, right) {
+  if (left.minFret !== right.minFret) {
+    return left.minFret - right.minFret;
+  }
+
+  if (left.averageFret !== right.averageFret) {
+    return left.averageFret - right.averageFret;
+  }
+
+  if (left.maxFret !== right.maxFret) {
+    return left.maxFret - right.maxFret;
+  }
+
+  return chordVoicingSortKey(left).localeCompare(chordVoicingSortKey(right));
+}
+
+function normalizeWrappedIndex(index, count) {
+  if (!count) {
+    return 0;
+  }
+
+  const requestedIndex = Number(index);
+  if (!Number.isFinite(requestedIndex)) {
+    return 0;
+  }
+
+  const normalized = requestedIndex % count;
+  return normalized >= 0 ? normalized : normalized + count;
+}
+
+function derivePositionBand(variants, activeIndex) {
+  if (variants.length <= 1) {
+    return "mid";
+  }
+
+  if (variants.length === 2) {
+    return activeIndex === 0 ? "low" : "high";
+  }
+
+  if (activeIndex <= 0) {
+    return "low";
+  }
+
+  if (activeIndex >= variants.length - 1) {
+    return "high";
+  }
+
+  return "mid";
+}
+
+function buildActiveVoicingLabel(familyLabel, speciesLabel, inversionLabel, positionLabel, requiresMuting) {
+  const parts = [familyLabel];
+
+  if (speciesLabel) {
+    parts.push(speciesLabel);
+  }
+
+  parts.push(inversionLabel, positionLabel);
+
+  if (requiresMuting) {
+    parts.push("Requires Muting");
+  }
+
+  return parts.join(" · ");
+}
+
+function enrichChordVariantForUi(variant) {
+  const familyDefinition = deriveMechanicalCategory(variant);
+  const inversionOptionLabel = buildInversionOptionLabel(variant.inversionInterval);
+
+  return {
+    ...variant,
+    inversionOptionLabel,
+    mechanicalCategoryId: familyDefinition.id,
+    mechanicalCategoryLabel: familyDefinition.label,
+    playabilityLabel: variant.requiresMuting ? "Requires Muting" : null,
+    voicingFamilyId: familyDefinition.id,
+    voicingFamilyLabel: familyDefinition.label,
+    voicingFamilyOrder: familyDefinition.order,
+  };
+}
+
+function buildChordVariantCollections(variants, chordDefinition, resolveVoicings) {
+  const enrichedVariants = variants.map((variant) => enrichChordVariantForUi(variant, chordDefinition));
+  const familiesById = new Map();
+
+  enrichedVariants.forEach((variant) => {
+    const existingFamily = familiesById.get(variant.voicingFamilyId) ?? {
+      id: variant.voicingFamilyId,
+      label: variant.voicingFamilyLabel,
+      order: variant.voicingFamilyOrder,
+      minFret: variant.minFret,
+      inversionsById: new Map(),
+      variants: [],
+    };
+
+    existingFamily.minFret = Math.min(existingFamily.minFret, variant.minFret);
+    existingFamily.variants.push(variant);
+
+    const existingInversion = existingFamily.inversionsById.get(variant.inversionId) ?? {
+      id: variant.inversionId,
+      index: variant.inversionIndex,
+      label: variant.inversionOptionLabel,
+      variants: [],
+    };
+
+    existingInversion.variants.push(variant);
+    existingFamily.inversionsById.set(variant.inversionId, existingInversion);
+    familiesById.set(variant.voicingFamilyId, existingFamily);
+  });
+
+  const resolvedVoicingFamilies = Object.fromEntries(
+    [...familiesById.entries()].map(([familyId, family]) => {
+      const sortedFamilyVariants = [...family.variants].sort(compareVoicingsByDisplayPosition);
+      const sortedInversions = [...family.inversionsById.values()]
+        .map((inversion) => ({
+          ...inversion,
+          variants: [...inversion.variants].sort(compareVoicingsByDisplayPosition),
+        }))
+        .sort((left, right) => left.index - right.index);
+
+      return [familyId, {
+        id: family.id,
+        label: family.label,
+        order: family.order,
+        minFret: family.minFret,
+        inversionOptions: sortedInversions.map((inversion) => ({
+          id: inversion.id,
+          label: inversion.label,
+          disabled: !resolveVoicings,
+        })),
+        inversionsById: Object.fromEntries(sortedInversions.map((inversion) => [inversion.id, inversion])),
+        variants: sortedFamilyVariants,
+      }];
+    }),
+  );
+
+  const voicingFamilyOptions = Object.values(resolvedVoicingFamilies)
+    .sort((left, right) => {
+      if (left.order !== right.order) {
+        return left.order - right.order;
+      }
+
+      if (left.minFret !== right.minFret) {
+        return left.minFret - right.minFret;
+      }
+
+      return left.label.localeCompare(right.label);
+    })
+    .map((family) => ({
+      id: family.id,
+      label: family.label,
+      disabled: !resolveVoicings,
+    }));
+
+  return {
+    resolvedVariants: Object.fromEntries(enrichedVariants.map((variant) => [variant.id, variant])),
+    resolvedVoicingFamilies,
+    variantOptions: enrichedVariants.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      disabled: !resolveVoicings,
+    })),
+    voicingFamilyOptions,
   };
 }
 
@@ -726,7 +1121,7 @@ function buildChordVariants(tuning, chordDefinition, maxFret) {
   const variantsByKey = new Map();
 
   const visitWindow = (windowStart) => {
-    const windowEnd = Math.min(windowStart + COMPACT_CHORD_MAX_SPAN, maxFret);
+    const windowEnd = Math.min(windowStart + (windowStart === 0 ? OPEN_CHORD_MAX_SPAN : COMPACT_CHORD_MAX_SPAN), maxFret);
     const candidateLists = tuning.map((stringDefinition) => buildChordCandidatesForString(
       stringDefinition,
       chordDefinition.noteNames,
@@ -742,13 +1137,7 @@ function buildChordVariants(tuning, chordDefinition, maxFret) {
         }
 
         const voicingAnalysis = analyzeChordVoicing(chosen);
-        if (voicingAnalysis.internalMuteCount > 0) {
-          return;
-        }
-
-        const voicedFrets = voicingAnalysis.voiced.map((candidate) => candidate.fret);
-        const span = voicedFrets.length > 1 ? Math.max(...voicedFrets) - Math.min(...voicedFrets) : 0;
-        if (span > COMPACT_CHORD_MAX_SPAN) {
+        if (!isChordVoicingPlayable(voicingAnalysis)) {
           return;
         }
 
@@ -793,36 +1182,11 @@ function buildChordVariants(tuning, chordDefinition, maxFret) {
     visitWindow(windowStart);
   }
 
-  return [...variantsByKey.values()]
-    .map(({ frets, score }) => ({ frets, score }))
-    .sort((left, right) => {
-      const leftActiveFrets = left.frets.filter((fret) => fret >= 0);
-      const rightActiveFrets = right.frets.filter((fret) => fret >= 0);
-      const leftMin = leftActiveFrets.length > 0 ? Math.min(...leftActiveFrets) : 0;
-      const rightMin = rightActiveFrets.length > 0 ? Math.min(...rightActiveFrets) : 0;
-      if (leftMin !== rightMin) {
-        return leftMin - rightMin;
-      }
-
-      const leftInversion = findVoicingInversionIndex(left.frets.map((fret, index) => ({ fret, note: fret >= 0 ? noteAtFret(tuning[index], fret, chordDefinition.accidentalPreference) : null, nutFret: tuning[index].nutFret })), chordDefinition);
-      const rightInversion = findVoicingInversionIndex(right.frets.map((fret, index) => ({ fret, note: fret >= 0 ? noteAtFret(tuning[index], fret, chordDefinition.accidentalPreference) : null, nutFret: tuning[index].nutFret })), chordDefinition);
-      if (leftInversion !== rightInversion) {
-        return leftInversion - rightInversion;
-      }
-
-      const leftMax = leftActiveFrets.length > 0 ? Math.max(...leftActiveFrets) : 0;
-      const rightMax = rightActiveFrets.length > 0 ? Math.max(...rightActiveFrets) : 0;
-      if (leftMax !== rightMax) {
-        return leftMax - rightMax;
-      }
-
-      if (left.score !== right.score) {
-        return right.score - left.score;
-      }
-
-      return chordVoicingSortKey(left).localeCompare(chordVoicingSortKey(right));
-    })
-    .slice(0, COMPACT_CHORD_MAX_RESULTS)
+  return selectChordVariantsForDisplay(
+    [...variantsByKey.values()].map(({ frets, score }) => ({ frets, score })),
+    tuning,
+    chordDefinition,
+  )
     .map((variant, index) => buildCompactChordVariant(
       variant.frets.map((fret, stringIndex) => ({
         fret,
@@ -890,12 +1254,19 @@ function buildChordSelectionBase({
       }
     : null;
   const variants = chordDefinition ? buildChordVariants(tuning, chordDefinition, maxFret) : [];
-  const resolvedVariants = Object.fromEntries(variants.map((variant) => [variant.id, variant]));
-  const variantOptions = variants.map((variant) => ({
-    id: variant.id,
-    label: variant.label,
-    disabled: !resolveVoicings,
-  }));
+  const {
+    resolvedVariants,
+    resolvedVoicingFamilies,
+    variantOptions,
+    voicingFamilyOptions,
+  } = chordDefinition
+      ? buildChordVariantCollections(variants, chordDefinition, resolveVoicings)
+      : {
+        resolvedVariants: {},
+        resolvedVoicingFamilies: {},
+        variantOptions: [],
+        voicingFamilyOptions: [],
+      };
 
   return {
     chordId: resolvedChord?.id ?? chordId,
@@ -910,10 +1281,12 @@ function buildChordSelectionBase({
     noteNames: resolvedChord?.noteNames ?? [],
     resolvedChord,
     resolvedVariants,
+    resolvedVoicingFamilies,
     root: resolvedChord?.root ?? selectedKey,
     slug: resolvedChord?.slug ?? `${selectedKey.toLowerCase()}-${scaleName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     type: resolvedChord?.type ?? scaleName,
     variantOptions,
+    voicingFamilyOptions,
   };
 }
 
@@ -993,17 +1366,22 @@ export function getInKeyChordSelection({
   instrument,
   tuningName,
   chordId,
+  inversionId,
+  positionIndex = 0,
   variantId,
   chordOptions = null,
   chordStructureOptions = null,
   resolveVoicings = true,
   structureId = CHORD_STRUCTURE_OPTIONS[0].id,
+  voicingFamilyId,
   maxFret = 18,
 }) {
   const {
     resolvedChord,
     resolvedVariants,
+    resolvedVoicingFamilies,
     variantOptions,
+    voicingFamilyOptions,
     ...selectionBase
   } = getCachedChordSelectionBase({
     selectedKey,
@@ -1017,25 +1395,81 @@ export function getInKeyChordSelection({
     structureId,
     maxFret,
   });
-  const resolvedVariantOption = resolveVoicings
-    ? variantOptions.find((option) => option.id === variantId && !option.disabled)
-      ?? variantOptions.find((option) => !option.disabled)
-      ?? variantOptions[0]
+  const defaultVariantOption = resolveVoicings
+    ? variantOptions.find((option) => !option.disabled) ?? variantOptions[0] ?? null
+    : variantOptions[0] ?? null;
+  const seededVariant = variantId
+    ? resolvedVariants[variantId] ?? null
+    : defaultVariantOption
+      ? resolvedVariants[defaultVariantOption.id] ?? null
+      : null;
+  const resolvedVoicingFamilyOption = resolveVoicings
+    ? voicingFamilyOptions.find((option) => option.id === (voicingFamilyId ?? seededVariant?.voicingFamilyId) && !option.disabled)
+    ?? voicingFamilyOptions.find((option) => !option.disabled)
+    ?? voicingFamilyOptions[0]
+    ?? null
+    : voicingFamilyOptions.find((option) => option.id === (voicingFamilyId ?? seededVariant?.voicingFamilyId))
+    ?? voicingFamilyOptions[0]
+    ?? null;
+  const resolvedVoicingFamily = resolvedVoicingFamilyOption ? resolvedVoicingFamilies[resolvedVoicingFamilyOption.id] ?? null : null;
+  const inversionOptions = resolvedVoicingFamily?.inversionOptions ?? [];
+  const resolvedInversionOption = resolveVoicings
+    ? inversionOptions.find((option) => option.id === (inversionId ?? seededVariant?.inversionId) && !option.disabled)
+    ?? inversionOptions.find((option) => !option.disabled)
+    ?? inversionOptions[0]
       ?? null
-    : variantOptions.find((option) => option.id === variantId)
-      ?? variantOptions[0]
+    : inversionOptions.find((option) => option.id === (inversionId ?? seededVariant?.inversionId))
+    ?? inversionOptions[0]
       ?? null;
-  const resolvedVariant = resolvedVariantOption ? resolvedVariants[resolvedVariantOption.id] ?? null : null;
+  const currentVoicings = resolvedInversionOption
+    ? resolvedVoicingFamily?.inversionsById?.[resolvedInversionOption.id]?.variants ?? []
+    : [];
+  const seededPositionIndex = variantId && seededVariant
+    ? currentVoicings.findIndex((variant) => variant.id === seededVariant.id)
+    : -1;
+  const resolvedPositionIndex = normalizeWrappedIndex(seededPositionIndex >= 0 ? seededPositionIndex : positionIndex, currentVoicings.length);
+  const resolvedVariant = currentVoicings[resolvedPositionIndex] ?? null;
+  const resolvedVariantOption = resolvedVariant
+    ? variantOptions.find((option) => option.id === resolvedVariant.id) ?? null
+    : null;
+  const positionLabel = resolvedVariant ? derivePositionBand(currentVoicings, resolvedPositionIndex) : "mid";
+  const positionOptions = currentVoicings.map((variant, index) => ({
+    id: variant.id,
+    label: derivePositionBand(currentVoicings, index),
+    disabled: !resolveVoicings,
+  }));
 
   return {
     ...selectionBase,
     available: Boolean(resolvedChord && resolvedVariant),
+    currentVoicings,
+    inversionId: resolvedInversionOption?.id ?? inversionId ?? null,
+    inversionLabel: resolvedInversionOption?.label ?? "Root",
+    inversionOptions,
     notice: resolveVoicings ? buildChordSelectionNotice(selectionBase.chordOptions, resolvedChord, resolvedVariant) : null,
+    positionCount: positionOptions.length,
     positionFrets: resolvedVariant?.frets ?? [],
+    positionIndex: resolvedPositionIndex,
+    positionLabel,
+    positionOptions,
+    requiresMuting: resolvedVariant?.requiresMuting ?? false,
+    speciesId: resolvedVariant?.speciesId ?? null,
+    speciesLabel: resolvedVariant?.speciesLabel ?? null,
     variantId: resolveVoicings ? resolvedVariantOption?.id ?? variantId : variantId,
-    variantLabel: resolvedVariant?.label ?? resolvedVariantOption?.label ?? "Position",
+    variantLabel: resolvedVariant
+      ? buildActiveVoicingLabel(
+        resolvedVoicingFamilyOption?.label ?? "Moveable",
+        resolvedVariant?.speciesLabel ?? null,
+        resolvedInversionOption?.label ?? "Root",
+        positionLabel,
+        resolvedVariant?.requiresMuting ?? false,
+      )
+      : resolvedVariantOption?.label ?? "Position",
     variantOptions,
     view: resolvedVariant?.view ?? { endFret: maxFret, startFret: 0 },
+    voicingFamilyId: resolvedVoicingFamilyOption?.id ?? voicingFamilyId ?? null,
+    voicingFamilyLabel: resolvedVoicingFamilyOption?.label ?? "Moveable",
+    voicingFamilyOptions,
   };
 }
 
@@ -1153,6 +1587,7 @@ export function buildFretboardModel({
           note,
           active,
           chordIntervalLabel,
+          scaleDegreeLabel: scaleDegreeMap.get(note) ?? null,
           highlighted: isChordPositionNote,
           isRoot: isRootNote,
           visible,

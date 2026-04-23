@@ -28,6 +28,7 @@ import {
   applyThemePreset,
   buildThemeCssVariables,
   detectMatchingThemePreset,
+  serializeFretboardVisualSettings,
   DEFAULT_FRETBOARD_VISUAL_SETTINGS,
   FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY,
   getResponsiveFretboardVisualSettings,
@@ -43,8 +44,8 @@ const defaultInstrument = instrumentOptions[0];
 const defaultTuning = Object.keys(INSTRUMENTS[defaultInstrument])[0];
 const FIXED_MAX_FRET = 18;
 const INSTRUMENT_STRING_SPACING_STORAGE_KEY = "dragon-scales:instrument-string-spacing";
-const MIN_INSTRUMENT_STRING_SPACING_SCALE = 0.72;
-const MAX_INSTRUMENT_STRING_SPACING_SCALE = 1.55;
+const MIN_INSTRUMENT_STRING_SPACING_SCALE = 0.30;
+const MAX_INSTRUMENT_STRING_SPACING_SCALE = 2.00;
 // Match Tailwind's `sm` breakpoint so the phone-specific viewer kicks in at the same width the layout starts stacking.
 const SMARTPHONE_MAX_WIDTH = 640;
 const COMPACT_SMARTPHONE_MAX_HEIGHT = 430;
@@ -62,7 +63,7 @@ const MonacoOutputPanel = lazy(() => import("../components/MonacoOutputPanel"));
 const HOW_TO_USE_COPY = [
   "Scale/Chord viewer for the guitar, banjo, and other stringed instruments to come.",
   "To use, select a scale or chord from the dropdown menu, and the fretboard will display the notes in that scale or chord. You can also change to alternate tunings via the dropdown menu, and the fretboard will update accordingly.",
-  'Chords are displayed in "Chord Mode", which keeps the scale visible, highlights the chord tones, and lets you scroll through compact triad or seventh voicings that fit inside a four-fret span. The position list shows inversion labels with the fret range instead of named shape families.',
+  'Chords are displayed in "Chord Mode", which keeps the scale visible, highlights the chord tones, and lets you choose a voicing family, filter the available inversions, and step left or right through low, mid, and high positions without changing the manual fret range.',
 ];
 
 const DEFAULT_INSTRUMENT_STRING_SPACING = Object.fromEntries(instrumentOptions.map((option) => [option, 1]));
@@ -112,9 +113,115 @@ function loadInstrumentStringSpacing() {
   }
 }
 
-function serializeLayoutEditorState(visualSettings, instrumentStringSpacing) {
+function buildLayoutEditorUiState({
+  chordInversionId,
+  chordPositionIndex,
+  chordStructureId,
+  chordVoicingFamilyId,
+  displayMode,
+  displayTarget,
+  endFret,
+  instrument,
+  noteSelections,
+  scaleName,
+  selectedChordId,
+  selectedKey,
+  startFret,
+  tuningName,
+}) {
+  return {
+    chordInversionId,
+    chordPositionIndex,
+    chordStructureId,
+    chordVoicingFamilyId,
+    displayMode,
+    displayTarget,
+    endFret,
+    instrument,
+    noteSelections,
+    scaleName,
+    selectedChordId,
+    selectedKey,
+    startFret,
+    tuningName,
+  };
+}
+
+function normalizeLayoutEditorUiState(candidate, currentUiState, maxFret = FIXED_MAX_FRET) {
+  const nextDisplayTarget = DISPLAY_TARGETS.includes(candidate.displayTarget)
+    ? candidate.displayTarget
+    : currentUiState.displayTarget;
+  const nextDisplayMode = DISPLAY_MODES.includes(candidate.displayMode)
+    ? candidate.displayMode
+    : currentUiState.displayMode;
+  const nextSelectedKey = NOTES_SHARP.includes(candidate.selectedKey)
+    ? candidate.selectedKey
+    : currentUiState.selectedKey;
+  const nextScaleName = scaleOptions.includes(candidate.scaleName)
+    ? candidate.scaleName
+    : currentUiState.scaleName;
+  const nextInstrument = instrumentOptions.includes(candidate.instrument)
+    ? candidate.instrument
+    : currentUiState.instrument;
+  const nextTuningOptions = Object.keys(INSTRUMENTS[nextInstrument] ?? {});
+  const nextTuningName = nextTuningOptions.includes(candidate.tuningName)
+    ? candidate.tuningName
+    : nextTuningOptions.includes(currentUiState.tuningName)
+      ? currentUiState.tuningName
+      : nextTuningOptions[0] ?? defaultTuning;
+  const nextChordStructureOptions = getAvailableChordStructures(nextScaleName);
+  const nextChordStructureId = nextChordStructureOptions.some((option) => option.id === candidate.chordStructureId)
+    ? candidate.chordStructureId
+    : nextChordStructureOptions.some((option) => option.id === currentUiState.chordStructureId)
+      ? currentUiState.chordStructureId
+      : nextChordStructureOptions[0]?.id ?? "triad";
+  const nextChordOptions = buildScaleChordOptions(nextSelectedKey, nextScaleName, nextChordStructureId);
+  const nextSelectedChordId = nextChordOptions.some((option) => option.id === candidate.selectedChordId)
+    ? candidate.selectedChordId
+    : nextChordOptions.some((option) => option.id === currentUiState.selectedChordId)
+      ? currentUiState.selectedChordId
+      : nextChordOptions[0]?.id ?? "degree-0";
+  const parsedStartFret = toBoundedInteger(candidate.startFret, 0, maxFret - 1, currentUiState.startFret);
+  const parsedEndFret = toBoundedInteger(candidate.endFret, 1, maxFret, currentUiState.endFret);
+  const nextStartFret = Math.min(parsedStartFret, parsedEndFret - 1);
+  const nextEndFret = Math.max(parsedEndFret, nextStartFret + 1);
+  const rawNoteSelections = Array.isArray(candidate.noteSelections)
+    ? candidate.noteSelections
+    : currentUiState.noteSelections;
+  const nextNoteSelections = ROMAN_LABELS.map((_, index) => Boolean(rawNoteSelections[index]));
+  const nextChordPositionIndex = Math.max(
+    0,
+    Number.isFinite(Number(candidate.chordPositionIndex))
+      ? Number.parseInt(candidate.chordPositionIndex, 10)
+      : currentUiState.chordPositionIndex,
+  );
+
+  return {
+    chordInversionId: candidate.chordInversionId === null || typeof candidate.chordInversionId === "string"
+      ? candidate.chordInversionId
+      : currentUiState.chordInversionId,
+    chordPositionIndex: nextChordPositionIndex,
+    chordStructureId: nextChordStructureId,
+    chordVoicingFamilyId: candidate.chordVoicingFamilyId === null || typeof candidate.chordVoicingFamilyId === "string"
+      ? candidate.chordVoicingFamilyId
+      : currentUiState.chordVoicingFamilyId,
+    displayMode: nextDisplayMode,
+    displayTarget: nextDisplayTarget,
+    endFret: nextEndFret,
+    instrument: nextInstrument,
+    noteSelections: nextNoteSelections,
+    scaleName: nextScaleName,
+    selectedChordId: nextSelectedChordId,
+    selectedKey: nextSelectedKey,
+    startFret: nextStartFret,
+    tuningName: nextTuningName,
+  };
+}
+
+function serializeLayoutEditorState(visualSettings, instrumentStringSpacing, uiState) {
   return JSON.stringify(
     {
+      uiState,
       visualSettings,
       instrumentStringSpacing,
     },
@@ -123,7 +230,7 @@ function serializeLayoutEditorState(visualSettings, instrumentStringSpacing) {
   );
 }
 
-function parseLayoutEditorState(rawValue, currentVisualSettings, currentInstrumentStringSpacing) {
+function parseLayoutEditorState(rawValue, currentVisualSettings, currentInstrumentStringSpacing, currentUiState, maxFret = FIXED_MAX_FRET) {
   let parsed;
 
   try {
@@ -138,6 +245,7 @@ function parseLayoutEditorState(rawValue, currentVisualSettings, currentInstrume
 
   const visualSettingsPatch = parsed.visualSettings ?? {};
   const instrumentStringSpacingPatch = parsed.instrumentStringSpacing ?? {};
+  const uiStatePatch = parsed.uiState ?? {};
 
   if (typeof visualSettingsPatch !== "object" || Array.isArray(visualSettingsPatch)) {
     throw new Error("visualSettings must be a JSON object when provided.");
@@ -147,19 +255,74 @@ function parseLayoutEditorState(rawValue, currentVisualSettings, currentInstrume
     throw new Error("instrumentStringSpacing must be a JSON object when provided.");
   }
 
+  if (typeof uiStatePatch !== "object" || Array.isArray(uiStatePatch)) {
+    throw new Error("uiState must be a JSON object when provided.");
+  }
+
   const nextVisualSettings = normalizeFretboardVisualSettings({
     ...currentVisualSettings,
     ...visualSettingsPatch,
   });
+  const nextUiState = normalizeLayoutEditorUiState(
+    { ...currentUiState, ...uiStatePatch },
+    currentUiState,
+    maxFret,
+  );
 
   return {
     instrumentStringSpacing: normalizeInstrumentStringSpacing({
       ...currentInstrumentStringSpacing,
       ...instrumentStringSpacingPatch,
     }),
+    uiState: nextUiState,
     visualSettings: {
       ...nextVisualSettings,
       themePresetId: detectMatchingThemePreset(nextVisualSettings),
+    },
+  };
+}
+
+function parseUnsafeLayoutEditorState(rawValue, currentVisualSettings, currentInstrumentStringSpacing, currentUiState) {
+  let parsed;
+
+  try {
+    parsed = JSON.parse(rawValue);
+  } catch {
+    throw new Error("Layout state must be valid JSON.");
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Layout state must be a JSON object.");
+  }
+
+  const visualSettingsPatch = parsed.visualSettings ?? {};
+  const instrumentStringSpacingPatch = parsed.instrumentStringSpacing ?? {};
+  const uiStatePatch = parsed.uiState ?? {};
+
+  if (typeof visualSettingsPatch !== "object" || Array.isArray(visualSettingsPatch)) {
+    throw new Error("visualSettings must be a JSON object when provided.");
+  }
+
+  if (typeof instrumentStringSpacingPatch !== "object" || Array.isArray(instrumentStringSpacingPatch)) {
+    throw new Error("instrumentStringSpacing must be a JSON object when provided.");
+  }
+
+  if (typeof uiStatePatch !== "object" || Array.isArray(uiStatePatch)) {
+    throw new Error("uiState must be a JSON object when provided.");
+  }
+
+  return {
+    instrumentStringSpacing: {
+      ...currentInstrumentStringSpacing,
+      ...instrumentStringSpacingPatch,
+    },
+    uiState: {
+      ...currentUiState,
+      ...uiStatePatch,
+    },
+    visualSettings: {
+      ...currentVisualSettings,
+      ...visualSettingsPatch,
     },
   };
 }
@@ -509,8 +672,10 @@ export default function FretboardApp() {
   const [instrument, setInstrument] = useState(defaultInstrument);
   const [tuningName, setTuningName] = useState(defaultTuning);
   const [selectedChordId, setSelectedChordId] = useState("degree-0");
-  const [chordVariantId, setChordVariantId] = useState("voicing-0");
   const [chordStructureId, setChordStructureId] = useState("triad");
+  const [chordVoicingFamilyId, setChordVoicingFamilyId] = useState(null);
+  const [chordInversionId, setChordInversionId] = useState(null);
+  const [chordPositionIndex, setChordPositionIndex] = useState(0);
   const [displayMode, setDisplayMode] = useState(DISPLAY_MODES[0]);
   const [startFret, setStartFret] = useState(0);
   const [endFret, setEndFret] = useState(FIXED_MAX_FRET);
@@ -533,7 +698,7 @@ export default function FretboardApp() {
   const reloadOnControllerChangeRef = useRef(false);
   const fretboardSvgRef = useRef(null);
   const [instrumentStringSpacing, setInstrumentStringSpacing] = useState(loadInstrumentStringSpacing);
-  const [layoutEditorValue, setLayoutEditorValue] = useState(() => serializeLayoutEditorState(loadFretboardVisualSettings(), loadInstrumentStringSpacing()));
+  const [layoutEditorValue, setLayoutEditorValue] = useState(() => "");
   const [layoutEditorStatus, setLayoutEditorStatus] = useState(null);
   const [layoutEditorError, setLayoutEditorError] = useState(null);
   const [isLayoutEditorVisible, setIsLayoutEditorVisible] = useState(false);
@@ -550,6 +715,42 @@ export default function FretboardApp() {
   const currentTuning = useMemo(() => getTuningStrings(instrument, tuningName), [instrument, tuningName]);
   const stringCount = currentTuning.length;
   const maxFret = FIXED_MAX_FRET;
+  const currentLayoutEditorUiState = useMemo(() => buildLayoutEditorUiState({
+    chordInversionId,
+    chordPositionIndex,
+    chordStructureId,
+    chordVoicingFamilyId,
+    displayMode,
+    displayTarget,
+    endFret,
+    instrument,
+    noteSelections,
+    scaleName,
+    selectedChordId,
+    selectedKey,
+    startFret,
+    tuningName,
+  }), [
+    chordInversionId,
+    chordPositionIndex,
+    chordStructureId,
+    chordVoicingFamilyId,
+    displayMode,
+    displayTarget,
+    endFret,
+    instrument,
+    noteSelections,
+    scaleName,
+    selectedChordId,
+    selectedKey,
+    startFret,
+    tuningName,
+  ]);
+  const currentUnsafeLayoutEditorState = useMemo(() => ({
+    instrumentStringSpacing,
+    uiState: currentLayoutEditorUiState,
+    visualSettings,
+  }), [currentLayoutEditorUiState, instrumentStringSpacing, visualSettings]);
   const chordStructureOptions = useMemo(() => getAvailableChordStructures(scaleName), [scaleName]);
   const resolvedChordStructureId = useMemo(() => (
     chordStructureOptions.some((option) => option.id === chordStructureId)
@@ -568,14 +769,18 @@ export default function FretboardApp() {
     chordId: selectedChordId,
     chordOptions,
     chordStructureOptions,
+    inversionId: chordInversionId,
+    positionIndex: chordPositionIndex,
     resolveVoicings: displayTarget === "Chord",
     structureId: resolvedChordStructureId,
-    variantId: chordVariantId,
+    voicingFamilyId: chordVoicingFamilyId,
     maxFret,
   }), [
+    chordInversionId,
     chordOptions,
+    chordPositionIndex,
     chordStructureOptions,
-    chordVariantId,
+    chordVoicingFamilyId,
     displayTarget,
     instrument,
     maxFret,
@@ -612,7 +817,6 @@ export default function FretboardApp() {
     stringCount,
     tuningName,
   ]);
-
   useEffect(() => {
     if (displayTarget !== "Scale") {
       return;
@@ -673,10 +877,28 @@ export default function FretboardApp() {
       setSelectedChordId(chordSelection.chordId);
     }
 
-    if (chordSelection.variantId !== chordVariantId) {
-      setChordVariantId(chordSelection.variantId);
+    if (chordSelection.voicingFamilyId !== chordVoicingFamilyId) {
+      setChordVoicingFamilyId(chordSelection.voicingFamilyId);
     }
-  }, [chordSelection.chordId, chordSelection.variantId, chordVariantId, displayTarget, selectedChordId]);
+
+    if (chordSelection.inversionId !== chordInversionId) {
+      setChordInversionId(chordSelection.inversionId);
+    }
+
+    if (chordSelection.positionIndex !== chordPositionIndex) {
+      setChordPositionIndex(chordSelection.positionIndex);
+    }
+  }, [
+    chordInversionId,
+    chordPositionIndex,
+    chordSelection.chordId,
+    chordSelection.inversionId,
+    chordSelection.positionIndex,
+    chordSelection.voicingFamilyId,
+    chordVoicingFamilyId,
+    displayTarget,
+    selectedChordId,
+  ]);
 
   useEffect(() => {
     if (!isHelpToastVisible || typeof window === "undefined") {
@@ -738,6 +960,16 @@ export default function FretboardApp() {
 
     window.localStorage.setItem(INSTRUMENT_STRING_SPACING_STORAGE_KEY, JSON.stringify(instrumentStringSpacing));
   }, [instrumentStringSpacing]);
+
+  useEffect(() => {
+    setLayoutEditorValue((currentValue) => {
+      if (currentValue) {
+        return currentValue;
+      }
+
+      return serializeLayoutEditorState(visualSettings, instrumentStringSpacing, currentLayoutEditorUiState);
+    });
+  }, [currentLayoutEditorUiState, instrumentStringSpacing, visualSettings]);
 
   useEffect(() => {
     if (!isLayoutOverlayVisible || typeof window === "undefined") {
@@ -847,6 +1079,43 @@ export default function FretboardApp() {
     setTuningName(nextTuning);
   }
 
+  function handleChordChange(nextChordId) {
+    setSelectedChordId(nextChordId);
+    setChordVoicingFamilyId(null);
+    setChordInversionId(null);
+    setChordPositionIndex(0);
+  }
+
+  function handleChordStructureChange(nextStructureId) {
+    setChordStructureId(nextStructureId);
+    setChordVoicingFamilyId(null);
+    setChordInversionId(null);
+    setChordPositionIndex(0);
+  }
+
+  function handleChordVoicingFamilyChange(nextFamilyId) {
+    setChordVoicingFamilyId(nextFamilyId);
+    setChordInversionId(null);
+    setChordPositionIndex(0);
+  }
+
+  function handleChordInversionChange(nextInversionId) {
+    setChordInversionId(nextInversionId);
+    setChordPositionIndex(0);
+  }
+
+  function handleChordPositionStep(step) {
+    setChordPositionIndex((current) => {
+      const count = chordSelection.positionCount;
+
+      if (count <= 0) {
+        return 0;
+      }
+
+      return ((current + step) % count + count) % count;
+    });
+  }
+
   function handleStartFretChange(value) {
     const nextStart = toBoundedInteger(value, 0, maxFret - 1, startFret);
 
@@ -876,7 +1145,7 @@ export default function FretboardApp() {
   }
 
   function handleCopyVisualTweaksState() {
-    copyTextToClipboard(serializeLayoutEditorState(visualSettings, instrumentStringSpacing))
+    copyTextToClipboard(serializeLayoutEditorState(visualSettings, instrumentStringSpacing, currentLayoutEditorUiState))
       .then(() => {})
       .catch(() => {
         return;
@@ -896,24 +1165,48 @@ export default function FretboardApp() {
   }
 
   function handleLoadCurrentLayoutState() {
-    setLayoutEditorValue(serializeLayoutEditorState(visualSettings, instrumentStringSpacing));
+    setLayoutEditorValue(serializeLayoutEditorState(visualSettings, instrumentStringSpacing, currentLayoutEditorUiState));
     setLayoutEditorError(null);
-    setLayoutEditorStatus("Loaded the current live layout state.");
+    setLayoutEditorStatus("Loaded the current live UI and layout state.");
   }
 
   function handleApplyLayoutState({ save = false } = {}) {
     try {
-      const nextState = parseLayoutEditorState(layoutEditorValue, visualSettings, instrumentStringSpacing);
-      const nextSerializedState = serializeLayoutEditorState(nextState.visualSettings, nextState.instrumentStringSpacing);
+      const nextState = parseLayoutEditorState(
+        layoutEditorValue,
+        visualSettings,
+        instrumentStringSpacing,
+        currentLayoutEditorUiState,
+        maxFret,
+      );
+      const nextSerializedState = serializeLayoutEditorState(
+        nextState.visualSettings,
+        nextState.instrumentStringSpacing,
+        nextState.uiState,
+      );
 
+      setDisplayTarget(nextState.uiState.displayTarget);
+      setSelectedKey(nextState.uiState.selectedKey);
+      setScaleName(nextState.uiState.scaleName);
+      setInstrument(nextState.uiState.instrument);
+      setTuningName(nextState.uiState.tuningName);
+      setSelectedChordId(nextState.uiState.selectedChordId);
+      setChordStructureId(nextState.uiState.chordStructureId);
+      setChordVoicingFamilyId(nextState.uiState.chordVoicingFamilyId);
+      setChordInversionId(nextState.uiState.chordInversionId);
+      setChordPositionIndex(nextState.uiState.chordPositionIndex);
+      setDisplayMode(nextState.uiState.displayMode);
+      setStartFret(nextState.uiState.startFret);
+      setEndFret(nextState.uiState.endFret);
+      setNoteSelections(nextState.uiState.noteSelections);
       setVisualSettings(nextState.visualSettings);
       setInstrumentStringSpacing(nextState.instrumentStringSpacing);
       setLayoutEditorValue(nextSerializedState);
       setLayoutEditorError(null);
-      setLayoutEditorStatus(save ? "Applied layout changes and saved them." : "Applied layout changes to the live fretboard.");
+      setLayoutEditorStatus(save ? "Applied UI/layout changes and saved the persistent settings." : "Applied UI/layout changes to the live fretboard.");
 
       if (save && typeof window !== "undefined") {
-        window.localStorage.setItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY, JSON.stringify(nextState.visualSettings));
+        window.localStorage.setItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY, serializeFretboardVisualSettings(nextState.visualSettings));
       }
     } catch (error) {
       setLayoutEditorStatus(null);
@@ -1016,7 +1309,7 @@ export default function FretboardApp() {
       return;
     }
 
-    window.localStorage.setItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY, JSON.stringify(visualSettings));
+    window.localStorage.setItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY, serializeFretboardVisualSettings(visualSettings));
   }
 
   function handleResetVisualSettings() {
@@ -1076,6 +1369,99 @@ export default function FretboardApp() {
   const currentInstrumentStringSpacing = instrumentStringSpacing[instrument] ?? 1;
   const effectiveVisualSettingsBase = isSmartphone ? getResponsiveFretboardVisualSettings(visualSettings, viewportWidth, isLandscapeSmartphone) : visualSettings;
   const effectiveVisualSettings = { ...effectiveVisualSettingsBase, instrumentStringSpacingScale: currentInstrumentStringSpacing };
+  const layoutEditorPreview = useMemo(() => {
+    if (!isLayoutEditorVisible || isSmartphone) {
+      return {
+        error: null,
+        previewVisualSettings: effectiveVisualSettings,
+        state: currentUnsafeLayoutEditorState,
+        view: renderedView,
+      };
+    }
+
+    try {
+      const nextState = parseUnsafeLayoutEditorState(
+        layoutEditorValue,
+        visualSettings,
+        instrumentStringSpacing,
+        currentLayoutEditorUiState,
+      );
+      const previewInstrument = nextState.uiState.instrument;
+      const previewTuningName = nextState.uiState.tuningName;
+      const previewScaleName = nextState.uiState.scaleName;
+      const previewSelectedKey = nextState.uiState.selectedKey;
+      const previewDisplayTarget = nextState.uiState.displayTarget;
+      const previewDisplayMode = nextState.uiState.displayMode;
+      const previewChordStructureId = nextState.uiState.chordStructureId;
+      const previewTuning = getTuningStrings(previewInstrument, previewTuningName);
+      const previewStringCount = previewTuning.length;
+      const previewChordStructureOptions = getAvailableChordStructures(previewScaleName);
+      const previewChordOptions = buildScaleChordOptions(previewSelectedKey, previewScaleName, previewChordStructureId);
+      const previewChordSelection = getInKeyChordSelection({
+        selectedKey: previewSelectedKey,
+        scaleName: previewScaleName,
+        instrument: previewInstrument,
+        tuningName: previewTuningName,
+        chordId: nextState.uiState.selectedChordId,
+        chordOptions: previewChordOptions,
+        chordStructureOptions: previewChordStructureOptions,
+        inversionId: nextState.uiState.chordInversionId,
+        positionIndex: nextState.uiState.chordPositionIndex,
+        resolveVoicings: previewDisplayTarget === "Chord",
+        structureId: previewChordStructureId,
+        voicingFamilyId: nextState.uiState.chordVoicingFamilyId,
+        maxFret,
+      });
+      const previewView = renderFretboard({
+        selectedKey: previewSelectedKey,
+        scaleName: previewScaleName,
+        instrument: previewInstrument,
+        tuningName: previewTuningName,
+        displayMode: previewDisplayMode,
+        displayTarget: previewDisplayTarget,
+        startFretValue: nextState.uiState.startFret,
+        endFretValue: nextState.uiState.endFret,
+        highStringValue: 1,
+        lowStringValue: previewStringCount,
+        noteSelections: nextState.uiState.noteSelections,
+        chordSelection: previewChordSelection,
+      });
+      const previewInstrumentStringSpacing = nextState.instrumentStringSpacing?.[previewInstrument] ?? 1;
+      const previewVisualSettingsBase = isSmartphone
+        ? getResponsiveFretboardVisualSettings(nextState.visualSettings, viewportWidth, isLandscapeSmartphone)
+        : nextState.visualSettings;
+
+      return {
+        error: null,
+        previewVisualSettings: {
+          ...previewVisualSettingsBase,
+          instrumentStringSpacingScale: previewInstrumentStringSpacing,
+        },
+        state: nextState,
+        view: previewView,
+      };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Unsafe preview failed.",
+        previewVisualSettings: effectiveVisualSettings,
+        state: currentUnsafeLayoutEditorState,
+        view: null,
+      };
+    }
+  }, [
+    currentLayoutEditorUiState,
+    currentUnsafeLayoutEditorState,
+    effectiveVisualSettings,
+    instrumentStringSpacing,
+    isLandscapeSmartphone,
+    isLayoutEditorVisible,
+    isSmartphone,
+    layoutEditorValue,
+    maxFret,
+    renderedView,
+    viewportWidth,
+    visualSettings,
+  ]);
   const { rootClassName, viewerClassName, stackClassName } = getViewerLayoutClassNames({ isCompactSmartphone, isLandscapeSmartphone, isSmartphone });
   const controlSnapshot = {
     displayTarget,
@@ -1326,28 +1712,117 @@ export default function FretboardApp() {
                   chordStructureOptions={chordStructureOptions}
                   displayTarget={displayTarget}
                   displayTargets={DISPLAY_TARGETS}
+                  inversionId={chordSelection.inversionId}
+                  inversionOptions={chordSelection.inversionOptions}
                   notice={displayTarget === "Chord" ? chordSelection.notice : null}
-                  onChordChange={setSelectedChordId}
+                  onChordChange={handleChordChange}
                   onDisplayTargetChange={setDisplayTarget}
-                  onChordStructureChange={setChordStructureId}
-                  onVariantChange={setChordVariantId}
-                  selectedVariantId={chordSelection.variantId}
-                  variantOptions={chordSelection.variantOptions}
+                  onChordStructureChange={handleChordStructureChange}
+                  onInversionChange={handleChordInversionChange}
+                  onPositionStep={handleChordPositionStep}
+                  onVoicingFamilyChange={handleChordVoicingFamilyChange}
+                  positionCount={chordSelection.positionCount}
+                  positionIndex={chordSelection.positionIndex}
+                  positionLabel={chordSelection.positionLabel}
+                  voicingFamilyId={chordSelection.voicingFamilyId}
+                  voicingFamilyOptions={chordSelection.voicingFamilyOptions}
                 />
               </HeroHeader>
             </div>
           ) : null}
-          <div className="flex w-full justify-center" ref={panelRegionRef}>
-            <OutputPanel
-              baseVisualSettings={visualSettings}
-              isEditFocusMode={isEditFocusMode}
-              isSmartphone={isSmartphone}
-              model={renderedView}
-              onVisualSettingChange={handleVisualSettingChange}
-              showLayoutOverlay={isLayoutOverlayVisible}
-              svgRef={fretboardSvgRef}
-              visualSettings={effectiveVisualSettings}
-            />
+          <div className="w-full" ref={panelRegionRef}>
+            {!isSmartphone && isLayoutEditorVisible ? (
+              <div className="grid w-full items-start gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
+                <div className="min-w-0">
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-[20px] border px-4 py-3" style={{ background: "var(--theme-surface)", borderColor: "var(--theme-border)", color: "var(--theme-app-text)" }}>
+                    <div>
+                      <div className="text-[0.72rem] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--theme-muted)" }}>
+                        Draft Preview
+                      </div>
+                      <div className="text-[0.92rem] font-semibold tracking-[-0.02em]" style={{ color: "var(--theme-title-color)" }}>
+                        Unsafe Monaco state
+                      </div>
+                    </div>
+                    <div className="max-w-[18rem] text-right text-[0.76rem] leading-5" style={{ color: "var(--theme-muted)" }}>
+                      This panel updates from the editor immediately and can fail independently of the saved app state.
+                    </div>
+                  </div>
+                  {layoutEditorPreview.view ? (
+                    <div className="flex w-full justify-center">
+                      <OutputPanel
+                        baseVisualSettings={layoutEditorPreview.state.visualSettings}
+                        isEditFocusMode={isEditFocusMode}
+                        isSmartphone={isSmartphone}
+                        model={layoutEditorPreview.view}
+                        onVisualSettingChange={handleVisualSettingChange}
+                        showLayoutOverlay={isLayoutOverlayVisible}
+                        svgRef={fretboardSvgRef}
+                        visualSettings={layoutEditorPreview.previewVisualSettings}
+                      />
+                    </div>
+                  ) : (
+                    <section
+                      className="mx-auto w-[min(100%,1260px)] overflow-hidden rounded-[18px] border px-5 py-5"
+                      style={{
+                        background: "var(--theme-surface-strong)",
+                        borderColor: "rgba(140, 27, 27, 0.22)",
+                        boxShadow: "0 20px 48px var(--theme-fretboard-shadow)",
+                      }}
+                    >
+                      <div className="mb-2 text-[0.74rem] font-semibold uppercase tracking-[0.16em]" style={{ color: "#8c1b1b" }}>
+                        Preview Error
+                      </div>
+                      <div className="text-[0.92rem] font-semibold tracking-[-0.02em]" style={{ color: "var(--theme-title-color)" }}>
+                        The unsafe draft could not be rendered.
+                      </div>
+                      <p className="mb-0 mt-2 text-[0.84rem] leading-6" style={{ color: "var(--theme-muted)" }}>
+                        {layoutEditorPreview.error ?? "Unsafe preview failed."}
+                      </p>
+                    </section>
+                  )}
+                </div>
+                <Suspense
+                  fallback={(
+                    <div
+                      className="rounded-[28px] border px-4 py-5 text-[0.84rem]"
+                      style={{
+                        background: "var(--theme-surface-strong)",
+                        borderColor: "var(--theme-border)",
+                        boxShadow: "0 18px 42px var(--theme-fretboard-shadow)",
+                        color: "var(--theme-muted)",
+                      }}
+                    >
+                      Loading Monaco editor...
+                    </div>
+                  )}
+                >
+                  <MonacoOutputPanel
+                    errorMessage={layoutEditorError}
+                    onApply={() => handleApplyLayoutState()}
+                    onApplyAndSave={() => handleApplyLayoutState({ save: true })}
+                    onChange={handleLayoutEditorChange}
+                    onCopyCurrent={handleCopyVisualTweaksState}
+                    onLoadCurrent={handleLoadCurrentLayoutState}
+                    previewErrorMessage={layoutEditorPreview.error}
+                    statusMessage={layoutEditorStatus}
+                    value={layoutEditorValue}
+                  />
+                </Suspense>
+              </div>
+            ) : (
+              <div className="flex w-full justify-center">
+                <OutputPanel
+                  baseVisualSettings={visualSettings}
+                  isEditFocusMode={isEditFocusMode}
+                  isSmartphone={isSmartphone}
+                  model={renderedView}
+                  onVisualSettingChange={handleVisualSettingChange}
+                  showLayoutOverlay={isLayoutOverlayVisible}
+                  svgRef={fretboardSvgRef}
+                  visualSettings={effectiveVisualSettings}
+                />
+              </div>
+            )}
           </div>
           {!isEditFocusMode ? (
             <div ref={captionSelectorsRef}>
@@ -1374,34 +1849,6 @@ export default function FretboardApp() {
                 tuningOptions={tuningOptions}
               />
             </div>
-          ) : null}
-          {!isSmartphone && isLayoutEditorVisible ? (
-            <Suspense
-              fallback={(
-                <div
-                  className="mt-4 rounded-[28px] border px-4 py-5 text-[0.84rem]"
-                  style={{
-                    background: "var(--theme-surface-strong)",
-                    borderColor: "var(--theme-border)",
-                    boxShadow: "0 18px 42px var(--theme-fretboard-shadow)",
-                    color: "var(--theme-muted)",
-                  }}
-                >
-                  Loading Monaco editor...
-                </div>
-              )}
-            >
-              <MonacoOutputPanel
-                errorMessage={layoutEditorError}
-                onApply={() => handleApplyLayoutState()}
-                onApplyAndSave={() => handleApplyLayoutState({ save: true })}
-                onChange={handleLayoutEditorChange}
-                onCopyCurrent={handleCopyVisualTweaksState}
-                onLoadCurrent={handleLoadCurrentLayoutState}
-                statusMessage={layoutEditorStatus}
-                value={layoutEditorValue}
-              />
-            </Suspense>
           ) : null}
         </div>
       </div>

@@ -4,6 +4,7 @@ import App from "./App";
 import "./index.css";
 
 const PWA_STATUS_EVENT = "dragon-scales:pwa-status";
+const SERVICE_WORKER_APP_VERSION = __APP_VERSION__;
 
 function emitPwaStatus(type) {
   window.dispatchEvent(new CustomEvent(PWA_STATUS_EVENT, { detail: { type } }));
@@ -32,7 +33,9 @@ function wireServiceWorkerLifecycle(registration) {
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).then((registration) => {
+    const serviceWorkerUrl = `${import.meta.env.BASE_URL}sw.js?appVersion=${encodeURIComponent(SERVICE_WORKER_APP_VERSION)}`;
+
+    navigator.serviceWorker.register(serviceWorkerUrl).then((registration) => {
       wireServiceWorkerLifecycle(registration);
     }).catch(() => {
       return;

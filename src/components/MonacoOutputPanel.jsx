@@ -17,6 +17,7 @@ export default function MonacoOutputPanel({
   onChange,
   onCopyCurrent,
   onLoadCurrent,
+  previewErrorMessage = null,
   statusMessage = null,
   value,
 }) {
@@ -34,12 +35,14 @@ export default function MonacoOutputPanel({
       return undefined;
     }
 
-    const model = monaco.editor.createModel(value, "plaintext");
+    const model = monaco.editor.createModel(value, "json");
     const editor = monaco.editor.create(containerRef.current, {
       automaticLayout: true,
+      bracketPairColorization: { enabled: true },
       fontFamily: '"Cascadia Code", "Consolas", monospace',
       fontSize: 13,
       formatOnPaste: true,
+      formatOnType: true,
       lineNumbers: "on",
       lineNumbersMinChars: 3,
       minimap: { enabled: false },
@@ -104,6 +107,17 @@ export default function MonacoOutputPanel({
         borderColor: "var(--theme-border)",
         color: "var(--theme-muted)",
       };
+  const previewToneStyle = previewErrorMessage
+    ? {
+      background: "rgba(140, 27, 27, 0.08)",
+      borderColor: "rgba(140, 27, 27, 0.22)",
+      color: "#8c1b1b",
+    }
+    : {
+      background: "rgba(15, 88, 74, 0.08)",
+      borderColor: "rgba(15, 88, 74, 0.18)",
+      color: "#0f584a",
+    };
 
   return (
     <section
@@ -126,7 +140,7 @@ export default function MonacoOutputPanel({
             Monaco Editor
           </div>
           <div className="text-[1rem] font-semibold tracking-[-0.03em]" style={{ color: "var(--theme-title-color)" }}>
-            Live Layout State
+            Unsafe Live Preview + Safe Apply
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
@@ -137,17 +151,20 @@ export default function MonacoOutputPanel({
             Copy Current
           </button>
           <button className={buttonClassName} onClick={onApply} style={surfaceButtonStyle} type="button">
-            Apply
+            Apply Safe
           </button>
           <button className={buttonClassName} onClick={onApplyAndSave} style={accentButtonStyle} type="button">
-            Apply + Save
+            Apply Safe + Save
           </button>
         </div>
       </div>
       <div className="grid gap-3 border-b px-4 py-3 sm:px-5" style={{ borderColor: "var(--theme-border)" }}>
         <p className="m-0 text-[0.8rem] leading-5" style={{ color: "var(--theme-muted)" }}>
-          Edit the JSON that drives the live fretboard layout, then apply it. Useful keys include panelPaddingX, leftPad, openLaneWidth, preferredFretWidth, standardStringGap, shortNoteRadius, and instrumentStringSpacing.
+          Edit the full JSON state that drives the draft preview on the left. The preview updates immediately from raw JSON, even when those values would normally be clamped or rejected. Use Apply Safe only when you want the app to normalize the draft into the saved live state.
         </p>
+        <div className="rounded-[16px] border px-3 py-2 text-[0.78rem] leading-5" style={previewToneStyle}>
+          {previewErrorMessage ?? "Unsafe preview is live. Invalid JSON or impossible state combinations stay in Monaco and fail in the preview panel without overwriting the app state."}
+        </div>
         {errorMessage || statusMessage ? (
           <div className="rounded-[16px] border px-3 py-2 text-[0.78rem] leading-5" style={statusToneStyle}>
             {errorMessage ?? statusMessage}

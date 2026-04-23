@@ -232,7 +232,7 @@ export default function ControlsPanel({
               ) : (
                 <div className={[tileClassName, "sm:col-span-2 xl:col-span-1"].join(" ")} style={tileStyle}>
                   <span className={tileLabelClassName} style={tileLabelStyle}>Chord Mode</span>
-                  <p className="mt-2 text-[0.82rem] leading-5" style={mutedTextStyle}>Chord mode follows the selected key and scale. Use the header row to switch between in-key chords, choose triads or sevenths, and scroll through compact voicings that stay inside a four-fret span. Each voicing is labeled by inversion and fret range.</p>
+                    <p className="mt-2 text-[0.82rem] leading-5" style={mutedTextStyle}>Chord mode follows the selected key and scale. Use the header row to choose the chord, keep triads or sevenths selected, switch voicing families, filter the available inversions, and step through low, mid, or high positions with the arrow controls.</p>
                 </div>
               )}
 

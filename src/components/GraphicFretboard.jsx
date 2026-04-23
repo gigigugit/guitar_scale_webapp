@@ -1,6 +1,8 @@
 import { DEFAULT_FRETBOARD_VISUAL_SETTINGS } from "../lib/fretboardVisualSettings";
 import { getChordModeNoteStyle, getScaleModeNoteStyle } from "../lib/fretboardNoteStyles";
 
+const GRAPHIC_FRETBOARD_REFERENCE_FRET_COUNT = 13;
+
 function noteRadius(value, visualSettings) {
   // Controls note-circle radius. Reduce these values to make the markers hug the label text more closely.
   return value.length > 2 ? visualSettings.longNoteRadius : visualSettings.shortNoteRadius;
@@ -43,11 +45,16 @@ export function getGraphicFretboardMetrics(model, visualSettings = DEFAULT_FRETB
   const leftPad = visualSettings.leftPad;
   const rightPad = visualSettings.rightPad;
   const { rowGap, topPad, bottomPad } = getVerticalBoardMetrics(model.strings.length, visualSettings);
-  const openLaneWidth = model.showOpenStrings ? visualSettings.openLaneWidth : 0;
+  const openLaneWidth = visualSettings.openLaneWidth;
   const fretCount = model.frets.length;
-  const fretWidth = Math.max(visualSettings.minFretWidth, visualSettings.preferredFretWidth - Math.max(fretCount - 8, 0) * visualSettings.extraFretCompression);
+  const referenceFretWidth = Math.max(
+    visualSettings.minFretWidth,
+    visualSettings.preferredFretWidth - Math.max(GRAPHIC_FRETBOARD_REFERENCE_FRET_COUNT - 8, 0) * visualSettings.extraFretCompression,
+  );
+  const boardWidth = GRAPHIC_FRETBOARD_REFERENCE_FRET_COUNT * referenceFretWidth;
+  const fretWidth = fretCount > 0 ? boardWidth / fretCount : boardWidth;
   const boardStartX = leftPad + openLaneWidth;
-  const boardEndX = boardStartX + fretCount * fretWidth;
+  const boardEndX = boardStartX + boardWidth;
   const boardTopY = topPad;
   const boardBottomY = boardTopY + rowGap * (model.strings.length - 1);
   const svgWidth = boardEndX + rightPad;
@@ -60,6 +67,7 @@ export function getGraphicFretboardMetrics(model, visualSettings = DEFAULT_FRETB
     bottomPad,
     rowGap,
     openLaneWidth,
+    boardWidth,
     fretCount,
     fretWidth,
     boardStartX,

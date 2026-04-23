@@ -25,6 +25,13 @@ const primaryButtonStyle = {
 
 function ThemePreview({ preset }) {
   const overrides = getThemePresetOverrides(preset.id);
+  const paletteSwatches = [
+    overrides.appBackgroundColor,
+    overrides.surfaceColor,
+    overrides.rootNoteFillColor,
+    overrides.fifthNoteFillColor,
+    overrides.altNoteFillColor,
+  ];
 
   return (
     <div
@@ -41,7 +48,7 @@ function ThemePreview({ preset }) {
           <div className="mt-1 text-[1rem] font-semibold leading-tight">{preset.label}</div>
         </div>
         <div className="flex gap-1.5">
-          {[overrides.appBackgroundColor, overrides.surfaceColor, overrides.accentColor, overrides.noteFillColor].map((color) => (
+          {paletteSwatches.map((color) => (
             <span key={color} className="h-3.5 w-3.5 rounded-full border border-white/40 shadow-[0_1px_3px_rgba(0,0,0,0.12)]" style={{ background: color }} />
           ))}
         </div>
@@ -62,8 +69,9 @@ function ThemePreview({ preset }) {
             {[26, 68, 108, 148, 188].map((left, index) => (
               <span key={left} className="absolute top-2 bottom-2 w-px" style={{ left: `${left}px`, background: index === 0 ? overrides.fretNumberColor : overrides.fretLineColor, opacity: index === 0 ? 1 : 0.92 }} />
             ))}
-            <span className="absolute left-[72px] top-[11px] h-6 w-6 rounded-full" style={{ background: overrides.noteFillColor }} />
-            <span className="absolute left-[152px] top-[37px] h-6 w-6 rounded-full" style={{ background: overrides.noteFillColor }} />
+            <span className="absolute left-[52px] top-[11px] h-6 w-6 rounded-full" style={{ background: overrides.rootNoteFillColor }} />
+            <span className="absolute left-[112px] top-[24px] h-6 w-6 rounded-full" style={{ background: overrides.fifthNoteFillColor }} />
+            <span className="absolute left-[152px] top-[37px] h-6 w-6 rounded-full" style={{ background: overrides.altNoteFillColor }} />
           </div>
         </div>
 

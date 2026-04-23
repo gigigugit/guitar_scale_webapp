@@ -13,8 +13,15 @@ import {
   pitchClassToNoteName,
   warmChordSelectionCache,
 } from "./fretboard.js";
-import { getChordModeNoteStyle } from "./fretboardNoteStyles.js";
-import { DEFAULT_FRETBOARD_VISUAL_SETTINGS } from "./fretboardVisualSettings.js";
+import { getChordModeNoteStyle, getScaleModeNoteStyle } from "./fretboardNoteStyles.js";
+import {
+  applyThemePreset,
+  DEFAULT_FRETBOARD_VISUAL_SETTINGS,
+  deserializeStoredFretboardVisualSettings,
+  FRETBOARD_VISUAL_SETTINGS_STORAGE_VERSION,
+  serializeFretboardVisualSettings,
+  THEME_PRESET_IDS,
+} from "./fretboardVisualSettings.js";
 
 const ALL_SCALE_DEGREES = [true, true, true, true, true, true, true];
 
@@ -227,6 +234,84 @@ test("does not paint off-voicing chord roots with the active chord color", () =>
   });
 });
 
+test("uses degree-aware scale note colors for roots, fifths, and alternate tones", () => {
+  assert.deepEqual(getScaleModeNoteStyle({ isRoot: true, scaleDegreeLabel: "1" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: DEFAULT_FRETBOARD_VISUAL_SETTINGS.rootNoteFillColor,
+    fillOpacity: 1,
+    textFill: DEFAULT_FRETBOARD_VISUAL_SETTINGS.rootNoteTextColor,
+    textOpacity: 1,
+  });
+
+  assert.deepEqual(getScaleModeNoteStyle({ isRoot: false, scaleDegreeLabel: "5" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: DEFAULT_FRETBOARD_VISUAL_SETTINGS.fifthNoteFillColor,
+    fillOpacity: 1,
+    textFill: DEFAULT_FRETBOARD_VISUAL_SETTINGS.fifthNoteTextColor,
+    textOpacity: 1,
+  });
+
+  assert.deepEqual(getScaleModeNoteStyle({ isRoot: false, scaleDegreeLabel: "b3" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: DEFAULT_FRETBOARD_VISUAL_SETTINGS.altNoteFillColor,
+    fillOpacity: 1,
+    textFill: DEFAULT_FRETBOARD_VISUAL_SETTINGS.altNoteTextColor,
+    textOpacity: 1,
+  });
+});
+
+test("uses the requested orange palette for highlighted chord intervals", () => {
+  assert.deepEqual(getChordModeNoteStyle({ highlighted: true, chordIntervalLabel: "1" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: "#D97D26",
+    fillOpacity: 1,
+    textFill: "#111111",
+    textOpacity: 1,
+  });
+
+  assert.deepEqual(getChordModeNoteStyle({ highlighted: true, chordIntervalLabel: "b3" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: "#E0944D",
+    fillOpacity: 1,
+    textFill: "#111111",
+    textOpacity: 1,
+  });
+
+  assert.deepEqual(getChordModeNoteStyle({ highlighted: true, chordIntervalLabel: "5" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: "#E7AB74",
+    fillOpacity: 1,
+    textFill: "#111111",
+    textOpacity: 1,
+  });
+
+  assert.deepEqual(getChordModeNoteStyle({ highlighted: true, chordIntervalLabel: "7" }, DEFAULT_FRETBOARD_VISUAL_SETTINGS), {
+    fill: "#EDC39B",
+    fillOpacity: 1,
+    textFill: "#111111",
+    textOpacity: 1,
+  });
+});
+
+test("serializes visual settings with a storage version envelope", () => {
+  const serialized = serializeFretboardVisualSettings(DEFAULT_FRETBOARD_VISUAL_SETTINGS);
+  const parsed = JSON.parse(serialized);
+
+  assert.equal(parsed.version, FRETBOARD_VISUAL_SETTINGS_STORAGE_VERSION);
+  assert.equal(parsed.settings.themePresetId, DEFAULT_FRETBOARD_VISUAL_SETTINGS.themePresetId);
+});
+
+test("invalidates legacy stored former-default theme settings", () => {
+  const legacyFormerDefault = applyThemePreset(DEFAULT_FRETBOARD_VISUAL_SETTINGS, THEME_PRESET_IDS.VINTAGE_WORKSHOP);
+  const result = deserializeStoredFretboardVisualSettings(JSON.stringify(legacyFormerDefault));
+
+  assert.equal(result.clearStoredSettings, true);
+  assert.equal(result.normalizedSettings.themePresetId, DEFAULT_FRETBOARD_VISUAL_SETTINGS.themePresetId);
+});
+
+test("rewrites preserved legacy stored non-default theme settings into the versioned format", () => {
+  const legacyNonDefault = applyThemePreset(DEFAULT_FRETBOARD_VISUAL_SETTINGS, THEME_PRESET_IDS.STAGE_BLACK);
+  const result = deserializeStoredFretboardVisualSettings(JSON.stringify(legacyNonDefault));
+
+  assert.equal(result.clearStoredSettings, false);
+  assert.equal(result.rewriteStoredSettings, true);
+  assert.equal(result.normalizedSettings.themePresetId, THEME_PRESET_IDS.STAGE_BLACK);
+});
+
 test("stores chord interval labels on rendered chord notes", () => {
   const chordSelection = getInKeyChordSelection({
     selectedKey: "C",
@@ -307,11 +392,266 @@ test("builds compact voicing labels with inversion names instead of shape famili
   });
 
   assert.ok(chordSelection.variantOptions.length > 1);
-  assert.ok(chordSelection.variantOptions.every((option) => /Position|Inversion/.test(option.label)));
-  assert.ok(chordSelection.variantOptions.every((option) => !/Open|Barre|Shape|Closed|Upper/i.test(option.label)));
+  assert.ok(chordSelection.variantOptions.every((option) => /Root|3rd|5th|7th/.test(option.label)));
+  assert.ok(chordSelection.variantOptions.every((option) => !/Open|Barre|Shape|Moveable|Upper/i.test(option.label)));
 });
 
-test("keeps every generated voicing inside a four-fret span", () => {
+test("keeps obvious guitar barre voicings available as a dedicated family", () => {
+  const rootBarreSelection = getInKeyChordSelection({
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "triad",
+    maxFret: 12,
+    voicingFamilyId: "barre",
+    inversionId: "inversion-0",
+  });
+
+  assert.ok(rootBarreSelection.voicingFamilyOptions.some((option) => option.id === "barre"));
+
+  const renderedFrets = rootBarreSelection.currentVoicings.map((variant) => variant.frets.join(","));
+
+  assert.ok(renderedFrets.includes("-1,3,5,5,5,3"));
+  assert.ok(renderedFrets.includes("8,10,10,9,8,8"));
+});
+
+test("marks skipped-string voicings as requiring muting instead of discarding them", () => {
+  const baseRequest = {
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "triad",
+    maxFret: 12,
+  };
+  const chordSelection = getInKeyChordSelection(baseRequest);
+  let mutingVariant = null;
+
+  for (const familyOption of chordSelection.voicingFamilyOptions) {
+    const familySelection = getInKeyChordSelection({
+      ...baseRequest,
+      voicingFamilyId: familyOption.id,
+    });
+
+    for (const inversionOption of familySelection.inversionOptions) {
+      const candidateSelection = getInKeyChordSelection({
+        ...baseRequest,
+        inversionId: inversionOption.id,
+        voicingFamilyId: familyOption.id,
+      });
+      const candidateVariant = candidateSelection.currentVoicings.find((variant) => variant.requiresMuting);
+
+      if (candidateVariant) {
+        mutingVariant = candidateVariant;
+        break;
+      }
+    }
+
+    if (mutingVariant) {
+      break;
+    }
+  }
+
+  assert.ok(mutingVariant);
+  assert.match(mutingVariant.label, /Requires Muting/);
+});
+
+test("classifies voicings by mechanical family and species metadata", () => {
+  const openSelection = getInKeyChordSelection({
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "seventh",
+    maxFret: 12,
+    voicingFamilyId: "open",
+  });
+  const barreSelection = getInKeyChordSelection({
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "seventh",
+    maxFret: 12,
+    voicingFamilyId: "barre",
+    inversionId: "inversion-1",
+  });
+
+  assert.ok(openSelection.currentVoicings.every((variant) => variant.voicingFamilyId === "open"));
+  assert.ok(barreSelection.currentVoicings.every((variant) => variant.voicingFamilyId === "barre"));
+  assert.ok(barreSelection.currentVoicings.some((variant) => variant.speciesLabel === "Drop 3"));
+});
+
+test("labels inversions by the bass interval family", () => {
+  const chordSelection = getInKeyChordSelection({
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "triad",
+    maxFret: 5,
+  });
+
+  assert.ok(chordSelection.inversionOptions.every((option) => ["Root", "3rd", "5th", "7th"].includes(option.label)));
+});
+
+test("organizes chord voicings into family and inversion UI groups", () => {
+  const chordSelection = getInKeyChordSelection({
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "triad",
+    maxFret: 12,
+  });
+
+  assert.ok(chordSelection.voicingFamilyOptions.length > 0);
+  assert.ok(chordSelection.inversionOptions.length > 0);
+  assert.equal(chordSelection.currentVoicings.length, chordSelection.positionCount);
+  assert.equal(chordSelection.positionOptions.length, chordSelection.positionCount);
+  assert.ok(chordSelection.currentVoicings.every((variant) => variant.voicingFamilyId === chordSelection.voicingFamilyId));
+  assert.ok(chordSelection.currentVoicings.every((variant) => variant.inversionId === chordSelection.inversionId));
+  assert.ok(chordSelection.positionOptions.every((option) => /low|mid|high/.test(option.label)));
+});
+
+test("sorts position navigation by minimum fret then average fret and wraps navigation", () => {
+  const baseRequest = {
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "triad",
+    maxFret: 12,
+  };
+  const initialSelection = getInKeyChordSelection(baseRequest);
+  let targetSelection = null;
+
+  for (const familyOption of initialSelection.voicingFamilyOptions) {
+    const familySelection = getInKeyChordSelection({
+      ...baseRequest,
+      voicingFamilyId: familyOption.id,
+    });
+
+    for (const inversionOption of familySelection.inversionOptions) {
+      const candidateSelection = getInKeyChordSelection({
+        ...baseRequest,
+        inversionId: inversionOption.id,
+        voicingFamilyId: familyOption.id,
+      });
+
+      if (candidateSelection.positionCount > 1) {
+        targetSelection = candidateSelection;
+        break;
+      }
+    }
+
+    if (targetSelection) {
+      break;
+    }
+  }
+
+  assert.ok(targetSelection);
+
+  for (let index = 1; index < targetSelection.currentVoicings.length; index += 1) {
+    const previous = targetSelection.currentVoicings[index - 1];
+    const current = targetSelection.currentVoicings[index];
+
+    assert.ok(previous.minFret <= current.minFret);
+    if (previous.minFret === current.minFret) {
+      assert.ok(previous.averageFret <= current.averageFret);
+    }
+  }
+
+  const wrappedBackward = getInKeyChordSelection({
+    ...baseRequest,
+    inversionId: targetSelection.inversionId,
+    positionIndex: -1,
+    voicingFamilyId: targetSelection.voicingFamilyId,
+  });
+  const wrappedForward = getInKeyChordSelection({
+    ...baseRequest,
+    inversionId: targetSelection.inversionId,
+    positionIndex: targetSelection.positionCount,
+    voicingFamilyId: targetSelection.voicingFamilyId,
+  });
+
+  assert.equal(wrappedBackward.variantId, targetSelection.currentVoicings[targetSelection.currentVoicings.length - 1].id);
+  assert.equal(wrappedForward.variantId, targetSelection.currentVoicings[0].id);
+});
+
+test("derives low mid high position labels from the sorted voicing index", () => {
+  const baseRequest = {
+    selectedKey: "C",
+    scaleName: "Major",
+    instrument: "Guitar",
+    tuningName: "Standard (EADGBE)",
+    chordId: "degree-0",
+    structureId: "triad",
+    maxFret: 12,
+  };
+  const initialSelection = getInKeyChordSelection(baseRequest);
+  let targetSelection = initialSelection;
+
+  for (const familyOption of initialSelection.voicingFamilyOptions) {
+    const familySelection = getInKeyChordSelection({
+      ...baseRequest,
+      voicingFamilyId: familyOption.id,
+    });
+
+    for (const inversionOption of familySelection.inversionOptions) {
+      const candidateSelection = getInKeyChordSelection({
+        ...baseRequest,
+        inversionId: inversionOption.id,
+        voicingFamilyId: familyOption.id,
+      });
+
+      if (candidateSelection.positionCount > targetSelection.positionCount) {
+        targetSelection = candidateSelection;
+      }
+    }
+  }
+
+  const firstPosition = getInKeyChordSelection({
+    ...baseRequest,
+    inversionId: targetSelection.inversionId,
+    positionIndex: 0,
+    voicingFamilyId: targetSelection.voicingFamilyId,
+  });
+
+  assert.equal(firstPosition.positionLabel, targetSelection.positionCount > 1 ? "low" : "mid");
+
+  if (targetSelection.positionCount > 1) {
+    const lastPosition = getInKeyChordSelection({
+      ...baseRequest,
+      inversionId: targetSelection.inversionId,
+      positionIndex: targetSelection.positionCount - 1,
+      voicingFamilyId: targetSelection.voicingFamilyId,
+    });
+
+    assert.equal(lastPosition.positionLabel, "high");
+  }
+
+  if (targetSelection.positionCount > 2) {
+    const middlePosition = getInKeyChordSelection({
+      ...baseRequest,
+      inversionId: targetSelection.inversionId,
+      positionIndex: 1,
+      voicingFamilyId: targetSelection.voicingFamilyId,
+    });
+
+    assert.equal(middlePosition.positionLabel, "mid");
+  }
+});
+
+test("keeps non-open generated voicings inside a four-fret span", () => {
   const chordSelection = getInKeyChordSelection({
     selectedKey: "C",
     scaleName: "Major",
@@ -336,7 +676,9 @@ test("keeps every generated voicing inside a four-fret span", () => {
     const activeFrets = variantSelection.positionFrets.filter((fret) => fret >= 0);
     const span = activeFrets.length > 1 ? Math.max(...activeFrets) - Math.min(...activeFrets) : 0;
 
-    assert.ok(span <= 4, `${option.label} exceeded the compact span: ${span}`);
+    if (!variantSelection.positionFrets.includes(0)) {
+      assert.ok(span <= 4, `${option.label} exceeded the compact span without an open string: ${span}`);
+    }
   });
 });
 
@@ -352,5 +694,5 @@ test("exposes compact seventh voicings with inversion labels", () => {
   });
 
   assert.ok(chordSelection.variantOptions.length > 0);
-  assert.ok(chordSelection.variantOptions.every((option) => /(Position|Inversion) - Fret/.test(option.label) || /(Position|Inversion) - Frets/.test(option.label)));
+  assert.ok(chordSelection.variantOptions.every((option) => /(Root|3rd|5th|7th) in Bass - Fret/.test(option.label) || /(Root|3rd|5th|7th) in Bass - Frets/.test(option.label)));
 });

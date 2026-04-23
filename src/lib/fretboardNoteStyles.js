@@ -1,6 +1,4 @@
-const CHORD_HIGHLIGHT_BASE_HUE = 206;
-const CHORD_HIGHLIGHT_BASE_LIGHTNESS = 60;
-const CHORD_HIGHLIGHT_SATURATION_BY_RANK = [100, 72, 48, 28, 18];
+const CHORD_HIGHLIGHT_FILL_BY_RANK = ["#D97D26", "#E0944D", "#E7AB74", "#EDC39B", "#EDC39B"];
 
 function chordIntervalRank(intervalLabel) {
   switch (intervalLabel) {
@@ -27,8 +25,15 @@ function chordIntervalRank(intervalLabel) {
 
 function chordIntervalFill(intervalLabel) {
   const rank = chordIntervalRank(intervalLabel);
-  const saturation = CHORD_HIGHLIGHT_SATURATION_BY_RANK[Math.min(rank, CHORD_HIGHLIGHT_SATURATION_BY_RANK.length - 1)];
-  return `hsl(${CHORD_HIGHLIGHT_BASE_HUE} ${saturation}% ${CHORD_HIGHLIGHT_BASE_LIGHTNESS}%)`;
+  return CHORD_HIGHLIGHT_FILL_BY_RANK[Math.min(rank, CHORD_HIGHLIGHT_FILL_BY_RANK.length - 1)];
+}
+
+function isFifthFamilyScaleDegree(scaleDegreeLabel) {
+  return scaleDegreeLabel === "5" || scaleDegreeLabel === "b5" || scaleDegreeLabel === "#5";
+}
+
+function usesAlternateScaleTonePalette(scaleDegreeLabel) {
+  return scaleDegreeLabel === "b3" || scaleDegreeLabel === "3" || scaleDegreeLabel === "b7" || scaleDegreeLabel === "7";
 }
 
 export function getChordModeNoteStyle(note, visualSettings) {
@@ -52,9 +57,27 @@ export function getChordModeNoteStyle(note, visualSettings) {
 export function getScaleModeNoteStyle(note, visualSettings) {
   if (note.isRoot) {
     return {
-      fill: visualSettings.highlightedNoteFillColor,
+      fill: visualSettings.rootNoteFillColor,
       fillOpacity: 1,
-      textFill: "#111111",
+      textFill: visualSettings.rootNoteTextColor,
+      textOpacity: 1,
+    };
+  }
+
+  if (isFifthFamilyScaleDegree(note.scaleDegreeLabel)) {
+    return {
+      fill: visualSettings.fifthNoteFillColor,
+      fillOpacity: 1,
+      textFill: visualSettings.fifthNoteTextColor,
+      textOpacity: 1,
+    };
+  }
+
+  if (usesAlternateScaleTonePalette(note.scaleDegreeLabel)) {
+    return {
+      fill: visualSettings.altNoteFillColor,
+      fillOpacity: 1,
+      textFill: visualSettings.altNoteTextColor,
       textOpacity: 1,
     };
   }
