@@ -46,6 +46,12 @@ For this repository, the expected Pages URL is:
 
 `https://gigigugit.github.io/guitar_scale_webapp/`
 
+## PWA and cache updates
+
+The app uses versioned service worker caching so installed or previously loaded copies can pick up fresh shell files when the package version changes.
+
+When you make a release that should invalidate cached assets, bump the `version` field in `package.json` and review [docs/pwa-versioning.md](docs/pwa-versioning.md) for the expected update flow.
+
 ## Install on mobile
 
 For a fullscreen-like mobile experience, install the app to your home screen.
@@ -66,4 +72,12 @@ The mobile app is configured for standalone launch and landscape orientation.
 ## Extending chord support
 
 See [docs/in-key-chord-authoring.md](docs/in-key-chord-authoring.md) for the tuning schema and the chord-generation workflow used when adding new instruments or tunings.
+
+## Scripts
+
+- `npm run dev` starts the local Vite dev server.
+- `npm run dev:lan` exposes the dev server on the local network.
+- `npm run build` creates the production build.
+- `npm run preview` serves the production build locally.
+- `npm test` runs the Node test suite.
 
