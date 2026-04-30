@@ -94,7 +94,7 @@ export default function GraphicFretboard({ model, svgRef, visualSettings = DEFAU
   const fretSpacingMode = visualSettings.fretSpacingMode ?? "uniform";
   const nutLineWidth = Number(visualSettings.nutLineWidth ?? 4);
   const fretLineWidth = Number(visualSettings.fretLineWidth ?? 1.75);
-  const stringLineWidth = 1.8;
+  const stringLineWidth = model.instrument === "Banjo" ? 0.6 : 0.72;
   const fretBoundaryValues = Array.from({ length: fretCount + 1 }, (_, offset) => (model.showOpenStrings ? offset : model.startFret + offset));
   const fretBoundaryPositions = (() => {
     if (fretSpacingMode !== "tempered") {
