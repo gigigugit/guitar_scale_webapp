@@ -697,6 +697,7 @@ export default function FretboardApp() {
   const [isOffline, setIsOffline] = useState(() => (typeof navigator === "undefined" ? false : navigator.onLine === false));
   const reloadOnControllerChangeRef = useRef(false);
   const fretboardSvgRef = useRef(null);
+  const prevScaleLengthRef = useRef(null);
   const [instrumentStringSpacing, setInstrumentStringSpacing] = useState(loadInstrumentStringSpacing);
   const [layoutEditorValue, setLayoutEditorValue] = useState(() => "");
   const [layoutEditorStatus, setLayoutEditorStatus] = useState(null);
@@ -819,10 +820,18 @@ export default function FretboardApp() {
   ]);
   useEffect(() => {
     if (displayTarget !== "Scale") {
+      prevScaleLengthRef.current = null;
       return;
     }
 
-    setNoteSelections((previous) => previous.map((value, index) => (index < renderedView.scaleLength ? value : false)));
+    const prevLength = prevScaleLengthRef.current ?? renderedView.scaleLength;
+    prevScaleLengthRef.current = renderedView.scaleLength;
+
+    setNoteSelections((previous) => previous.map((value, index) => {
+      if (index >= renderedView.scaleLength) return false;
+      if (index >= prevLength) return true;
+      return value;
+    }));
   }, [displayTarget, renderedView.scaleLength]);
 
   useEffect(() => {
