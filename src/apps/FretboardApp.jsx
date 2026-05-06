@@ -46,6 +46,8 @@ const FIXED_MAX_FRET = 18;
 const INSTRUMENT_STRING_SPACING_STORAGE_KEY = "dragon-scales:instrument-string-spacing";
 const MIN_INSTRUMENT_STRING_SPACING_SCALE = 0.30;
 const MAX_INSTRUMENT_STRING_SPACING_SCALE = 2.00;
+const DEFAULT_STRING_SPACING_REFERENCE_STRING_COUNT = 6;
+const DEFAULT_STRING_SPACING_REFERENCE_SCALE = 0.75;
 // Match Tailwind's `sm` breakpoint so the phone-specific viewer kicks in at the same width the layout starts stacking.
 const SMARTPHONE_MAX_WIDTH = 640;
 const COMPACT_SMARTPHONE_MAX_HEIGHT = 430;
@@ -66,7 +68,47 @@ const HOW_TO_USE_COPY = [
   'Chords are displayed in "Chord Mode", which keeps the scale visible, highlights the chord tones, and lets you choose a voicing family, filter the available inversions, and step left or right through low, mid, and high positions without changing the manual fret range.',
 ];
 
-const DEFAULT_INSTRUMENT_STRING_SPACING = Object.fromEntries(instrumentOptions.map((option) => [option, 1]));
+const DEFAULT_INSTRUMENT_STRING_SPACING_OVERRIDES = {};
+
+function clampMetric(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getBaseInstrumentStringGap(stringCount, visualSettings = DEFAULT_FRETBOARD_VISUAL_SETTINGS) {
+  const referenceBoardSpan = visualSettings.compactStringGap * (DEFAULT_STRING_SPACING_REFERENCE_STRING_COUNT - 1);
+  const stringSegments = Math.max(stringCount - 1, 1);
+  const minGap = Math.min(visualSettings.compactStringGap, visualSettings.standardStringGap) * 0.9;
+  const maxGap = Math.max(visualSettings.compactStringGap, visualSettings.standardStringGap) * 1.3;
+
+  return clampMetric(referenceBoardSpan / stringSegments, minGap, maxGap);
+}
+
+const DEFAULT_TARGET_INSTRUMENT_STRING_GAP = getBaseInstrumentStringGap(DEFAULT_STRING_SPACING_REFERENCE_STRING_COUNT) * DEFAULT_STRING_SPACING_REFERENCE_SCALE;
+
+function getDefaultInstrumentStringSpacing(option) {
+  const defaultTuningName = Object.keys(INSTRUMENTS[option] ?? {})[0];
+
+  if (!defaultTuningName) {
+    return 1;
+  }
+
+  const stringCount = getTuningStrings(option, defaultTuningName).length;
+  const baseGap = getBaseInstrumentStringGap(stringCount);
+
+  if (!Number.isFinite(baseGap) || baseGap <= 0) {
+    return 1;
+  }
+
+  return clampInstrumentStringSpacing(DEFAULT_TARGET_INSTRUMENT_STRING_GAP / baseGap);
+}
+
+const DEFAULT_INSTRUMENT_STRING_SPACING = instrumentOptions.reduce((next, option) => {
+  const fallbackValue = getDefaultInstrumentStringSpacing(option);
+  const rawValue = Number(DEFAULT_INSTRUMENT_STRING_SPACING_OVERRIDES[option] ?? fallbackValue);
+
+  next[option] = Number.isFinite(rawValue) ? clampInstrumentStringSpacing(rawValue) : fallbackValue;
+  return next;
+}, {});
 
 function escapeXml(value) {
   return String(value).replace(/[&<>"']/g, (character) => {
@@ -1314,9 +1356,11 @@ export default function FretboardApp() {
 
   function handleResetVisualSettings() {
     setVisualSettings(DEFAULT_FRETBOARD_VISUAL_SETTINGS);
+    setInstrumentStringSpacing(DEFAULT_INSTRUMENT_STRING_SPACING);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(FRETBOARD_VISUAL_SETTINGS_STORAGE_KEY);
+      window.localStorage.removeItem(INSTRUMENT_STRING_SPACING_STORAGE_KEY);
     }
   }
 
